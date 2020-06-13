@@ -20,7 +20,7 @@ async def on_message(message):
     if message.author == discord.user:
         return
 
-    if message.content.startswith('!record'):
+    if message.content.startswith('!save'):
         strs = message.content.split(' ')
         if len(strs) < 3:
             # TODO if len == 2 write empty string to storage.
