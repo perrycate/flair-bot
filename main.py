@@ -2,6 +2,7 @@
 import discord
 import os
 import sys 
+from datetime import datetime
 
 from util import Storage
 
@@ -49,6 +50,7 @@ async def on_message(message):
         command = strs[1].lower()
         db.delete(command)
         await message.channel.send("Got it! Will no longer respond to '{}{}'.".format(SUMMONING_KEY, command))
+        print("{}: {} deleted '{}'".format(datetime.now(), message.author.name, command))
         return
 
     if message.content.startswith(SAVE_COMMAND):
@@ -60,6 +62,7 @@ async def on_message(message):
         content = ' '.join(strs[2:])
         db.save(message.author.name, command, content)
         await message.channel.send("Got it! Will respond to '{}{}' with '{}'".format(SUMMONING_KEY, command, content))
+        print("{}: {} set '{}' to '{}'".format(datetime.now(), message.author.name, command, content))
         return
    
     if message.content.startswith(HELP_COMMAND):
