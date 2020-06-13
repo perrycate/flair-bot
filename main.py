@@ -26,7 +26,7 @@ async def on_message(message):
             # TODO if len == 2 write empty string to storage.
             # This will be our means of "deleting" commands
             return
-        command = strs[1]
+        command = strs[1].lower()
         content = ' '.join(strs[2:])
         db.save(message.author.name, command, content)
         await message.channel.send("Got it! Will respond to ?{} with '{}'".format(command, content))
@@ -34,7 +34,7 @@ async def on_message(message):
 
     if message.content.startswith('?'):
         # Command is the first word, not including "?".
-        command = message.content.split(' ')[0][1:]
+        command = message.content.split(' ')[0][1:].lower()
         content = db.get(command)
         if content != '':
             await message.channel.send(content)
