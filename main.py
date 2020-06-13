@@ -5,7 +5,7 @@ import sys
 
 from util import Storage
 
-TOKEN_ENV_VAR_NAME = 'NEWTON_BOT_TOKEN'
+TOKEN_ENV_VAR_NAME = 'DISCORD_BOT_TOKEN'
 
 discord = discord.Client()
 db = Storage()
@@ -20,6 +20,16 @@ async def on_message(message):
     if message.author == discord.user:
         return
 
+    if message.content.startswith('!delete'):
+        strs = message.content.split(' ')
+        if len(strs) != 2:
+            await message.channel.send("Sorry, bud. I need the format '!delete <command>'.")
+            return
+        command = strs[1].lower()
+        db.delete(command)
+        await message.channel.send("Got it! Will no longer respond to '?{}'.".format(command))
+        return
+
     if message.content.startswith('!save'):
         strs = message.content.split(' ')
         if len(strs) < 3:
@@ -29,7 +39,7 @@ async def on_message(message):
         command = strs[1].lower()
         content = ' '.join(strs[2:])
         db.save(message.author.name, command, content)
-        await message.channel.send("Got it! Will respond to ?{} with '{}'".format(command, content))
+        await message.channel.send("Got it! Will respond to '?{}' with '{}'".format(command, content))
         return
 
     if message.content.startswith('?'):
@@ -46,7 +56,7 @@ def _err(str):
 def _main():
     # Log in to Discord.
     if TOKEN_ENV_VAR_NAME not in os.environ:
-        _err("{0} not found in system environment. Try running again, prefixing '{0}=<insert discord bot token here>'".format(TOKEN_ENV_VAR_NAME))
+        _err("{0} not found in system environment. Try running again with the prefix '{0}=<insert discord bot token here>'".format(TOKEN_ENV_VAR_NAME))
     auth = os.environ[TOKEN_ENV_VAR_NAME]
     discord.run(auth)
 
