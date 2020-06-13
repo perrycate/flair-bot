@@ -6,6 +6,10 @@ import sys
 from util import Storage
 
 TOKEN_ENV_VAR_NAME = 'DISCORD_BOT_TOKEN'
+SUMMONING_KEY = '~'
+SAVE_COMMAND = '!save'
+DELETE_COMMAND = '!delete'
+HELP_COMMAND = '!help'
 
 discord = discord.Client()
 db = Storage()
@@ -20,35 +24,35 @@ async def on_message(message):
     if message.author == discord.user:
         return
 
-    if message.content.startswith('!delete'):
+    if message.content.startswith(DELETE_COMMAND):
         strs = message.content.split(' ')
         if len(strs) != 2:
-            await message.channel.send("Sorry, bud. I need the format '!delete <command>'.")
+            await message.channel.send("Sorry, bud. I need the format '{} <command>'.".format(DELETE_COMMAND))
             return
         command = strs[1].lower()
         db.delete(command)
-        await message.channel.send("Got it! Will no longer respond to '?{}'.".format(command))
+        await message.channel.send("Got it! Will no longer respond to '{}{}'.".format(SUMMONING_KEY, command))
         return
 
-    if message.content.startswith('!save'):
+    if message.content.startswith(SAVE_COMMAND):
         strs = message.content.split(' ')
         if len(strs) < 3:
-            # TODO if len == 2 write empty string to storage.
-            # This will be our means of "deleting" commands
+            await message.channel.send("Sorry, bud. I need the format '{} <keyword> <response content>'.".format(SAVE_COMMAND))
             return
         command = strs[1].lower()
         content = ' '.join(strs[2:])
         db.save(message.author.name, command, content)
-        await message.channel.send("Got it! Will respond to '?{}' with '{}'".format(command, content))
+        await message.channel.send("Got it! Will respond to '{}{}' with '{}'".format(SUMMONING_KEY, command, content))
         return
 
-    if message.content.startswith('?'):
-        # Command is the first word, not including "?".
-        command = message.content.split(' ')[0][1:].lower()
+    if message.content.startswith(SUMMONING_KEY):
+        # Command is the first word, not including the summoning key
+        command = message.content.split(' ')[0][len(SUMMONING_KEY):].lower()
         content = db.get(command)
         if content != '':
             await message.channel.send(content)
         return 
+    
    
 def _err(str):
     sys.exit(str)
