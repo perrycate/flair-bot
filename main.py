@@ -53,6 +53,14 @@ async def on_message(message):
             await message.channel.send(content)
         return 
     
+    if message.content.startswith(HELP_COMMAND):
+        await message.channel.send(
+"""
+Save a command: {} <keyword> <response content>
+Use a command: {}<keyword>
+Delete a command: {} <keyword>
+""".format(SAVE_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
+
    
 def _err(str):
     sys.exit(str)
