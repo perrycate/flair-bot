@@ -13,7 +13,6 @@ class Storage:
         rows = self._read('''SELECT content FROM commands where trigger=? AND enabled=1 ORDER BY date DESC LIMIT 1;''', command)
         if len(rows) == 0:
             return ""
-        print(rows)
         return rows[0][0]
 
     def delete(self, command):

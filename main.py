@@ -5,7 +5,9 @@ import sys
 
 from util import Storage
 
-TOKEN_ENV_VAR_NAME = 'DISCORD_BOT_TOKEN'
+TOKEN_ENV_VAR = 'DISCORD_BOT_TOKEN'
+ADMIN_CHANNEL_ENV_VAR = 'DISCORD_ADMIN_CHANNEL'
+
 SUMMONING_KEY = '~'
 SAVE_COMMAND = '!save'
 DELETE_COMMAND = '!delete'
@@ -13,6 +15,9 @@ HELP_COMMAND = '!help'
 
 discord = discord.Client()
 db = Storage()
+
+# The channel to listen for save and delete commands for.
+admin_channel = 'newtons-study'
 
 @discord.event
 async def on_ready():
@@ -22,6 +27,18 @@ async def on_ready():
 async def on_message(message):
     # Ignore messages from self, otherwise we'll infinite loop.
     if message.author == discord.user:
+        return
+
+    if message.content.startswith(SUMMONING_KEY):
+        # Command is the first word, not including the summoning key
+        command = message.content.split(' ')[0][len(SUMMONING_KEY):].lower()
+        content = db.get(command)
+        if content != '':
+            await message.channel.send(content)
+        return
+
+    # Admin-only commands below this point.
+    if message.channel.name != admin_channel:
         return
 
     if message.content.startswith(DELETE_COMMAND):
@@ -44,15 +61,7 @@ async def on_message(message):
         db.save(message.author.name, command, content)
         await message.channel.send("Got it! Will respond to '{}{}' with '{}'".format(SUMMONING_KEY, command, content))
         return
-
-    if message.content.startswith(SUMMONING_KEY):
-        # Command is the first word, not including the summoning key
-        command = message.content.split(' ')[0][len(SUMMONING_KEY):].lower()
-        content = db.get(command)
-        if content != '':
-            await message.channel.send(content)
-        return 
-    
+   
     if message.content.startswith(HELP_COMMAND):
         await message.channel.send(
 """
@@ -62,15 +71,22 @@ Delete a command: {} <keyword>
 """.format(SAVE_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
 
    
-def _err(str):
-    sys.exit(str)
-            
 def _main():
-    # Log in to Discord.
-    if TOKEN_ENV_VAR_NAME not in os.environ:
-        _err("{0} not found in system environment. Try running again with the prefix '{0}=<insert discord bot token here>'".format(TOKEN_ENV_VAR_NAME))
-    auth = os.environ[TOKEN_ENV_VAR_NAME]
-    discord.run(auth)
+    global admin_channel
 
+    # Set admin channel, or notify what the default is.
+    if ADMIN_CHANNEL_ENV_VAR not in os.environ:
+        print("Using the default admin channel. To change it, run again with the prefix '{}=<channel name>'".format(admin_channel, ADMIN_CHANNEL_ENV_VAR))
+    else:
+        admin_channel = os.environ[ADMIN_CHANNEL_ENV_VAR]
+
+    print("Admin channel is '{}'. Will only accept !save and !delete commands if they appear there.".format(admin_channel))
+
+    # Log in to Discord.
+    if TOKEN_ENV_VAR not in os.environ:
+        sys.exit("{0} not found in system environment. Try running again with the prefix '{0}=<insert discord bot token here>'".format(TOKEN_ENV_VAR))
+    auth = os.environ[TOKEN_ENV_VAR]
+    # This call blocks indefinitely. Nothing will run below this line.
+    discord.run(auth)
 
 _main()
