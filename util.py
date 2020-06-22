@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import sqlite3
 
-DB_NAME = 'newton_storage.db'
-
 class Storage:
 
     def save(self, username, command, content):
@@ -25,9 +23,8 @@ class Storage:
         self._cursor.execute(sql, args)
         return self._cursor.fetchall()
  
-
-    def __init__(self):
-        self._conn = sqlite3.connect(DB_NAME)
+    def __init__(self, sqlite3_db_name):
+        self._conn = sqlite3.connect(sqlite3_db_name)
         self._cursor = self._conn.cursor()
 
         self._exec('''CREATE TABLE IF NOT EXISTS commands (key INTEGER PRIMARY KEY, date TEXT, user TEXT, trigger TEXT, content TEXT, enabled INTEGER);''')
