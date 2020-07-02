@@ -29,7 +29,7 @@ class Bot(discord.Client):
 
     async def on_message(self, message):
         # Ignore messages from ourself, otherwise we'll infinite loop.
-        if message.author == discord.user:
+        if message.author == self.user:
             return
 
         if message.content.startswith(SUMMONING_KEY):
@@ -98,4 +98,6 @@ def _main():
     # Log in and begin reading and responding to messages.
     # Nothing else will run below this line.
     newton.run(auth)
-_main()
+
+if __name__ == '__main__':
+    _main()
