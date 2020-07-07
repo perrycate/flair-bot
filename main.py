@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import discord
 import os
-import sys 
+import sys
 from datetime import datetime
 
 from util import Storage
@@ -16,6 +16,7 @@ SUMMONING_KEY = '~'
 SAVE_COMMAND = '!save'
 DELETE_COMMAND = '!delete'
 HELP_COMMAND = '!help'
+
 
 class Bot(discord.Client):
 
@@ -34,7 +35,8 @@ class Bot(discord.Client):
 
         if message.content.startswith(SUMMONING_KEY):
             # Command is the first word, not including the summoning key
-            command = message.content.split(' ')[0][len(SUMMONING_KEY):].lower()
+            command = message.content.split(
+                ' ')[0][len(SUMMONING_KEY):].lower()
             content = self._db.get(command)
             if content != '':
                 await message.channel.send(content)
@@ -52,7 +54,8 @@ class Bot(discord.Client):
             command = strs[1].lower()
             self._db.delete(command)
             await message.channel.send("Got it! Will no longer respond to '{}{}'.".format(SUMMONING_KEY, command))
-            print("{}: {} deleted '{}'".format(datetime.now(), message.author.name, command))
+            print("{}: {} deleted '{}'".format(
+                datetime.now(), message.author.name, command))
             return
 
         if message.content.startswith(SAVE_COMMAND):
@@ -64,23 +67,25 @@ class Bot(discord.Client):
             content = ' '.join(strs[2:])
             self._db.save(message.author.name, command, content)
             await message.channel.send("Got it! Will respond to '{}{}' with '{}'".format(SUMMONING_KEY, command, content))
-            print("{}: {} set '{}' to '{}'".format(datetime.now(), message.author.name, command, content))
+            print("{}: {} set '{}' to '{}'".format(
+                datetime.now(), message.author.name, command, content))
             return
 
         if message.content.startswith(HELP_COMMAND):
             await message.channel.send(
-"""
+                """
 Save a command: {} <keyword> <response content>
 Use a command: {}<keyword>
 Delete a command: {} <keyword>
 """.format(SAVE_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
 
-   
+
 def _main():
     # Set admin channel, or notify what the default is.
     admin_channel = DEFAULT_ADMIN_CHANNEL
     if ADMIN_CHANNEL_ENV_VAR not in os.environ:
-        print("Using the default admin channel ({}). To change it, run again with the prefix '{}=<channel name>'".format(admin_channel, ADMIN_CHANNEL_ENV_VAR))
+        print("Using the default admin channel ({}). To change it, run again with the prefix '{}=<channel name>'".format(
+            admin_channel, ADMIN_CHANNEL_ENV_VAR))
     else:
         admin_channel = os.environ[ADMIN_CHANNEL_ENV_VAR]
 
@@ -92,12 +97,14 @@ def _main():
 
     # Check for auth token.
     if TOKEN_ENV_VAR not in os.environ:
-        sys.exit("{0} not found in system environment. Try running again with the prefix '{0}=<insert discord bot token here>'".format(TOKEN_ENV_VAR))
+        sys.exit("{0} not found in system environment. Try running again with the prefix '{0}=<insert discord bot token here>'".format(
+            TOKEN_ENV_VAR))
     auth = os.environ[TOKEN_ENV_VAR]
 
     # Log in and begin reading and responding to messages.
     # Nothing else will run below this line.
     newton.run(auth)
+
 
 if __name__ == '__main__':
     _main()
