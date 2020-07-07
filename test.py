@@ -120,6 +120,13 @@ class TestCreateAndDeleteCommands(BaseTest):
         r = self.send(message("{}test".format(main.SUMMONING_KEY)))
         self.assertEqual(r, "I say something")
 
+    def test_ignores_unset_commands(self):
+        # Use of the same "test" command name we use in the other tests is
+        # intentional. Consider it a bonus sanity check to make sure we're
+        # properly resetting the database between every test.
+        self.assertIsNone(
+            self.send(message("{}test".format(main.SUMMONING_KEY))))
+
 
 class TestIgnoresSelfMessages(BaseTest):
     def test_ignore_self(self):
@@ -153,12 +160,12 @@ def empty_future():
 # Returns a discord message object (really a MagicMock) with the given text as content.
 def message(text, channel='arbitrary-channel'):
     m = MagicMock(spec=discord.Message)
-    m.author = MagicMock(spec=discord.abc.User)
-    m.author.name = "arbitrary user"
     m.channel = MagicMock(spec=discord.TextChannel)
+    m.author = MagicMock(spec=discord.abc.User)
 
     m.content = text
     m.channel.name = channel
+    m.author.name = "arbitrary_user"
     return m
 
 
