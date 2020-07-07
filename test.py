@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 import discord
+import time
 import asyncio
 import os
 from unittest.mock import MagicMock
@@ -72,6 +73,24 @@ class TestCreateAndDeleteCommands(BaseTest):
         # Trigger it, make sure we get the response we want.
         m = message('{}test'.format(main.SUMMONING_KEY))
         self.send_and_check(m, "I say something now")
+
+    def test_overwrite(self):
+        # Save a command.
+        m = message("{} test I say something".format(
+            main.SAVE_COMMAND), ADMIN_CHANNEL)
+        self.send_and_check(m, '{}test'.format(
+            main.SUMMONING_KEY), "")
+
+        # Overwrite it with a different command multiple times
+        for i in range(100):
+            m = message("{} test I say something different - {}".format(
+                main.SAVE_COMMAND, i), ADMIN_CHANNEL)
+            self.send_and_check(m, '{}test'.format(
+                main.SUMMONING_KEY), "")
+
+        # Trigger it, make sure we get the response we want.
+        m = message('{}test'.format(main.SUMMONING_KEY))
+        self.send_and_check(m, "I say something different - 99")
 
     def test_delete(self):
         # Save a command.
