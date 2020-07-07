@@ -33,12 +33,9 @@ class BaseTest(unittest.TestCase):
         if os.path.exists(TEST_DB):
             os.remove(TEST_DB)
 
-    # Trigger the bot with the given message, and check that the response
-    # contains the expected fragments.
-    #
-    # message must be a Mock.
-    # If there are no expected fragments, it wil make sure the message was not called
-    def send_and_check(self, message, *expected_fragments):
+    # Trigger the bot with the given "discord.Message" (must be a Mock).
+    # Returns the text of the bot's response, or None if there was no response.
+    def send(self, message):
         # The real message.channel.send is an async function. Make it return a
         # future to mimic the real behavior.
         message.channel.send.return_value = empty_future()
@@ -47,17 +44,18 @@ class BaseTest(unittest.TestCase):
         l = asyncio.get_event_loop()
         l.run_until_complete(self.bot.on_message(message))
 
-        # If we don't expect a response, make sure there wasn't one.
-        if len(expected_fragments) == 0:
-            message.channel.send.assert_not_called()
-            return
+        # Return the response, if there was one.
+        if message.channel.send.call_args is not None:
+            # The message content is the first argument.
+            return message.channel.send.call_args[0][0]
 
-        # If we did expect a response, make sure it contains all the substrings
-        # we expect.
-        message.channel.send.assert_called_once()
-        response = message.channel.send.call_args[0][0].lower()
-        for f in expected_fragments:
-            self.assertIn(f.lower(), response)
+    # Makes sure that all of the string fragments are in the given string text.
+    # Is case-insensitive.
+    # (Using camel case for consistency with python's testing library.)
+    def assertContainsAll(self, text, fragments):
+        m = text.lower()
+        for f in fragments:
+            self.assertIn(f.lower(), m)
 
 
 class TestCreateAndDeleteCommands(BaseTest):
@@ -65,67 +63,62 @@ class TestCreateAndDeleteCommands(BaseTest):
 
     def test_save_and_delete(self):
         # Save a command.
-        m = message("{} test I say something now".format(
-            main.SAVE_COMMAND), ADMIN_CHANNEL)
-        self.send_and_check(m, '{}test'.format(
-            main.SUMMONING_KEY), "I say something now")
+        r = self.send(message("{} test I say something now".format(
+            main.SAVE_COMMAND), ADMIN_CHANNEL))
+        self.assertContainsAll(r, [
+            '{}test'.format(main.SUMMONING_KEY),
+            "I say something now"])
 
         # Trigger it, make sure we get the response we want.
-        m = message('{}test'.format(main.SUMMONING_KEY))
-        self.send_and_check(m, "I say something now")
+        r = self.send(message('{}test'.format(main.SUMMONING_KEY)))
+        self.assertEqual(r, "I say something now")
 
     def test_overwrite(self):
-        # Save a command.
-        m = message("{} test I say something".format(
-            main.SAVE_COMMAND), ADMIN_CHANNEL)
-        self.send_and_check(m, '{}test'.format(
-            main.SUMMONING_KEY), "")
+        iterations = 20
 
-        # Overwrite it with a different command multiple times
-        for i in range(100):
-            m = message("{} test I say something different - {}".format(
-                main.SAVE_COMMAND, i), ADMIN_CHANNEL)
-            self.send_and_check(m, '{}test'.format(
-                main.SUMMONING_KEY), "")
+        # Save a command and overwrite it multiple times
+        for i in range(20):
+            self.send(message("{} test {}".format(
+                main.SAVE_COMMAND, i), ADMIN_CHANNEL))
 
-        # Trigger it, make sure we get the response we want.
-        m = message('{}test'.format(main.SUMMONING_KEY))
-        self.send_and_check(m, "I say something different - 99")
+        # Trigger it, make sure we get the last response.
+        r = self.send(message('{}test'.format(main.SUMMONING_KEY)))
+        self.assertEqual(r, "{}".format(iterations-1))
 
     def test_delete(self):
         # Save a command.
-        m = message("{} test I say something else".format(
-            main.SAVE_COMMAND), ADMIN_CHANNEL)
-        self.send_and_check(m, "")
+        r = self.send(message("{} test I say something else".format(
+            main.SAVE_COMMAND), ADMIN_CHANNEL))
+        self.assertIsNotNone(r)
 
         # Delete it.
-        m = message("{} test".format(main.DELETE_COMMAND), ADMIN_CHANNEL)
-        self.send_and_check(m, "test")
+        r = self.send(message("{} test".format(
+            main.DELETE_COMMAND), ADMIN_CHANNEL))
+        self.assertContainsAll(r, ["test"])
 
         # Make sure the bot does not respond to it
-        self.send_and_check(message("{}test".format(main.SUMMONING_KEY)))
+        r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+        self.assertIsNone(r)
 
     def test_save_only_works_in_admin_channel(self):
-        # Save a command, but in a non-admin channel.
-        m = message("{} test I say something else".format(main.SAVE_COMMAND))
-        self.send_and_check(m)
-
-        # Make sure the bot does not respond to it
-        self.send_and_check(message("{}test".format(main.SUMMONING_KEY)))
+        # Make sure our save request is ignored.
+        r = self.send(
+            message("{} test I say something else".format(main.SAVE_COMMAND)))
+        self.assertIsNone(r)
 
     def test_delete_only_works_in_admin_channel(self):
         # Save a command.
-        m = message("{} test I say something".format(
-            main.SAVE_COMMAND), ADMIN_CHANNEL)
-        self.send_and_check(m, "")
+        r = self.send(message("{} test I say something".format(
+            main.SAVE_COMMAND), ADMIN_CHANNEL))
+        self.assertIsNotNone(r)
 
         # Delete it, but in a non-admin channel.
-        m = message("{} test".format(main.DELETE_COMMAND))
-        self.send_and_check(m)
+        r = self.send(message("{} test".format(main.DELETE_COMMAND)))
+        self.assertIsNone(r)
 
         # Make sure the bot still responds
-        self.send_and_check(message("{}test".format(
-            main.SUMMONING_KEY)), "I say something")
+        r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+        self.assertEqual(r, "I say something")
 
 
 class TestIgnoresSelfMessages(BaseTest):
@@ -137,16 +130,16 @@ class TestIgnoresSelfMessages(BaseTest):
         m.author = self.bot.user
 
         # Make sure we don't get a response.
-        self.send_and_check(m)
+        self.assertIsNone(self.send(m))
 
 
 class TestHelp(BaseTest):
     def test_help_works_in_admin_channel(self):
-        m = message(main.HELP_COMMAND, ADMIN_CHANNEL)
-        self.send_and_check(m, 'Save', 'Use', 'Delete')
+        r = self.send(message(main.HELP_COMMAND, ADMIN_CHANNEL))
+        self.assertContainsAll(r, ['Save', 'Use', 'Delete'])
 
     def test_help_doesnt_work_outside_admin_channel(self):
-        self.send_and_check(message(main.HELP_COMMAND))
+        self.assertIsNone(self.send(message(main.HELP_COMMAND)))
 
 
 # We can set this as a return value to make mock functions behave as if they
