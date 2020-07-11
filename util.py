@@ -10,7 +10,7 @@ class Storage:
 
     def get(self, command):
         rows = self._read(
-            '''SELECT content FROM commands where trigger=? AND enabled=1 ORDER BY date DESC LIMIT 1;''', command)
+            '''SELECT content FROM commands where trigger=? AND enabled=1 ORDER BY RANDOM() LIMIT 1;''', command)
         if len(rows) == 0:
             return ""
         return rows[0][0]

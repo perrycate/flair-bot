@@ -14,6 +14,7 @@ DEFAULT_ADMIN_CHANNEL = 'newtons-study'
 
 SUMMONING_KEY = '~'
 SAVE_COMMAND = '!save'
+RANDOM_COMMAND = '!random'
 DELETE_COMMAND = '!delete'
 HELP_COMMAND = '!help'
 
@@ -65,6 +66,7 @@ class Bot(discord.Client):
                 return
             command = strs[1].lower()
             content = ' '.join(strs[2:])
+            self._db.delete(command)
             self._db.save(message.author.name, command, content)
             await message.channel.send("Got it! Will respond to '{}{}' with '{}'".format(SUMMONING_KEY, command, content))
             print("{}: {} set '{}' to '{}'".format(
