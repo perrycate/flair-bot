@@ -14,7 +14,7 @@ DEFAULT_ADMIN_CHANNEL = 'newtons-study'
 
 SUMMONING_KEY = '~'
 SAVE_COMMAND = '!save'
-RANDOM_COMMAND = '!random'
+RANDOM_COMMAND = '!random-add'
 DELETE_COMMAND = '!delete'
 HELP_COMMAND = '!help'
 
@@ -102,9 +102,10 @@ class Bot(discord.Client):
             await message.channel.send(
                 """
 Save a command: {} <keyword> <response content>
+Save a random command: {} <keyword> <response content>
 Use a command: {}<keyword>
 Delete a command: {} <keyword>
-""".format(SAVE_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
+""".format(SAVE_COMMAND, RANDOM_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
 
 
 def _main():
