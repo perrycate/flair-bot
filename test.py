@@ -161,6 +161,26 @@ class TestRandomCommands(BaseTest):
         self.assertGreater(totals["2"], 10)
         self.assertGreater(totals["3"], 10)
 
+    def test_add_all(self):
+        # Save 4 possible responses to the "test" command.
+        self._save_random("test", "1")
+        self.assertIsNotNone(self.send(
+            message("{} test 2 3 4".format(main.ADD_ALL_COMMAND), ADMIN_CHANNEL)))
+
+        # Count the occurrences of each response.
+        totals = {"1": 0, "2": 0, "3": 0, "4": 0}
+        for i in range(100):
+            r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+            totals[r] += 1
+
+        # Check each command got called at least a decent bit.
+        # We don't want our assumptions to be too strict since we're (poorly)
+        # dealing with randomness.
+        self.assertGreater(totals["1"], 10)
+        self.assertGreater(totals["2"], 10)
+        self.assertGreater(totals["3"], 10)
+        self.assertGreater(totals["4"], 10)
+
     def test_attempt_overwrite_to_single(self):
         # Attempt to overwrite a random command with a single command.
         self._save_random("test", "arbitrary response")
@@ -172,7 +192,8 @@ class TestRandomCommands(BaseTest):
         self.assertContainsAll(
             r, ["Sorry", "{} test".format(main.DELETE_COMMAND)])
 
-        self.assertEqual("arbitrary response", self.send(
+        # Could be either response
+        self.assertIn("arbitrary response", self.send(
             message("{}test".format(main.SUMMONING_KEY))))
 
     def test_overwrite_to_random(self):

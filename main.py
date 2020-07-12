@@ -15,6 +15,7 @@ DEFAULT_ADMIN_CHANNEL = 'newtons-study'
 SUMMONING_KEY = '~'
 SAVE_COMMAND = '!save'
 RANDOM_COMMAND = '!random-add'
+ADD_ALL_COMMAND = '!random-addall'
 DELETE_COMMAND = '!delete'
 HELP_COMMAND = '!help'
 
@@ -84,6 +85,22 @@ class Bot(discord.Client):
                 datetime.now(), message.author.name, command, content))
             return
 
+        if message.content.startswith(ADD_ALL_COMMAND):
+            strs = message.content.split(' ')
+            if len(strs) < 3:
+                await message.channel.send("Sorry, I need the format '{} <keyword> <response> <response> <response>...'.".format(RANDOM_COMMAND))
+                return
+            command = strs[1].lower()
+            content_words = strs[2:]
+            for w in content_words:
+                self._db.save(message.author.name, command, w)
+
+            c = self._db.count(command)
+            await message.channel.send("Got it! Will sometimes respond to '{}{}' with one of those {} responses. ({} total.)".format(SUMMONING_KEY, command, len(content_words), c))
+            print("{}: {} added '{}' to random command '{}'".format(
+                datetime.now(), message.author.name, content_words, command))
+            return
+
         if message.content.startswith(RANDOM_COMMAND):
             strs = message.content.split(' ')
             if len(strs) < 3:
@@ -102,10 +119,10 @@ class Bot(discord.Client):
             await message.channel.send(
                 """
 Save a command: {} <keyword> <response content>
-Save a random command: {} <keyword> <response content>
+Save a random command: {} <keyword> <response content> ({} to add each word as a separate response)
 Use a command: {}<keyword>
 Delete a command: {} <keyword>
-""".format(SAVE_COMMAND, RANDOM_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
+""".format(SAVE_COMMAND, RANDOM_COMMAND, ADD_ALL_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
 
 
 def _main():
