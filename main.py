@@ -62,8 +62,19 @@ class Bot(discord.Client):
         if message.content.startswith(SAVE_COMMAND):
             strs = message.content.split(' ')
             if len(strs) < 3:
-                await message.channel.send("Sorry, bud. I need the format '{} <keyword> <response content>'.".format(SAVE_COMMAND))
+                await message.channel.send("Sorry, I need the format '{} <keyword> <response content>'.".format(SAVE_COMMAND))
                 return
+
+            # If something is a random command (has multiple responses), don't
+            # automatically overwrite it.
+            command = strs[1].lower()
+            if self._db.count(command) > 1:
+                await message.channel.send(
+                    "Sorry, {0}{1} is already a command with multiple responses. "
+                    "If you're sure you want to overwrite it, delete it first with {2} {1})".format(
+                        SUMMONING_KEY, command, DELETE_COMMAND))
+                return
+
             command = strs[1].lower()
             content = ' '.join(strs[2:])
             self._db.delete(command)
@@ -71,6 +82,20 @@ class Bot(discord.Client):
             await message.channel.send("Got it! Will respond to '{}{}' with '{}'".format(SUMMONING_KEY, command, content))
             print("{}: {} set '{}' to '{}'".format(
                 datetime.now(), message.author.name, command, content))
+            return
+
+        if message.content.startswith(RANDOM_COMMAND):
+            strs = message.content.split(' ')
+            if len(strs) < 3:
+                await message.channel.send("Sorry, I need the format '{} <keyword> <response content>'.".format(RANDOM_COMMAND))
+                return
+            command = strs[1].lower()
+            content = ' '.join(strs[2:])
+            self._db.save(message.author.name, command, content)
+            c = self._db.count(command)
+            await message.channel.send("Got it! Will sometimes respond to '{}{}' with '{}'. (one of {} possible responses).".format(SUMMONING_KEY, command, content, c))
+            print("{}: {} added '{}' to random command '{}'".format(
+                datetime.now(), message.author.name, content, command))
             return
 
         if message.content.startswith(HELP_COMMAND):

@@ -15,6 +15,13 @@ class Storage:
             return ""
         return rows[0][0]
 
+    def count(self, command):
+        rows = self._read(
+            '''SELECT COUNT(*) FROM commands where trigger=? AND enabled=1;''', command)
+        if len(rows) == 0:
+            return 0
+        return int(rows[0][0])
+
     def delete(self, command):
         self._exec('''UPDATE commands SET enabled=0 WHERE trigger=?''', command)
 

@@ -128,6 +128,85 @@ class TestCreateAndDeleteCommands(BaseTest):
             self.send(message("{}test".format(main.SUMMONING_KEY))))
 
 
+class TestRandomCommands(BaseTest):
+    def test_only_works_in_admin_channel(self):
+        # Attempt to trigger the random command in a non-admin channel.
+        r = self.send(
+            message("{} test an arbitrary response.".format(main.RANDOM_COMMAND)))
+        self.assertIsNone(r)
+
+        self.assertIsNone(
+            self.send((message("test".format(main.SUMMONING_KEY)))))
+
+    def test_responds_randomly(self):
+        # Save 3 possible responses to the "test" command.
+        self.assertContainsAll(self._save_random(
+            "test", "response 1"), ["test", "response 1"])
+        self.assertContainsAll(self._save_random(
+            "test", "response 2"), ["test", "response 2"])
+        self.assertContainsAll(self._save_random(
+            "test", "response 3"), ["test", "response 3"])
+
+        # Count the occurrences of each response.
+        totals = {"1": 0, "2": 0, "3": 0}
+        for i in range(100):
+            r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+            n = r.split()[1]
+            totals[n] += 1
+
+        # Check each command got called at least a decent bit.
+        # We don't want our assumptions to be too strict since we're (poorly)
+        # dealing with randomness.
+        self.assertGreater(totals["1"], 10)
+        self.assertGreater(totals["2"], 10)
+        self.assertGreater(totals["3"], 10)
+
+    def test_attempt_overwrite_to_single(self):
+        # Attempt to overwrite a random command with a single command.
+        self._save_random("test", "arbitrary response")
+        self._save_random("test", "different arbitrary response")
+        r = self.send(
+            message("{} test a different arbitrary response".format(main.SAVE_COMMAND), ADMIN_CHANNEL))
+
+        # Should have failed with an error telling the user to delete it first.
+        self.assertContainsAll(
+            r, ["Sorry", "{} test".format(main.DELETE_COMMAND)])
+
+        self.assertEqual("arbitrary response", self.send(
+            message("{}test".format(main.SUMMONING_KEY))))
+
+    def test_overwrite_to_random(self):
+        # Turn a single command into a random command.
+        self.send(
+            message("{} test response 1".format(main.SAVE_COMMAND), ADMIN_CHANNEL))
+        r = self._save_random("test", "response 2")
+
+        totals = {"1": 0, "2": 0}
+        for i in range(100):
+            r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+            n = r.split()[1]
+            totals[n] += 1
+
+        self.assertGreater(totals["1"], 10)
+        self.assertGreater(totals["2"], 10)
+
+    def test_delete(self):
+        self._save_random("test", "arbitrary response 1")
+        self._save_random("test", "arbitrary response 2")
+
+        self.assertIsNotNone(
+            self.send(message("{} test".format(
+                main.DELETE_COMMAND), ADMIN_CHANNEL)))
+
+        # We should not respond, since we deleted it.
+        self.assertIsNone(self.send(message("{}test", main.SUMMONING_KEY)))
+
+    # Yes, I'm that lazy
+
+    def _save_random(self, command, msg):
+        return self.send(message("{} {} {}".format(main.RANDOM_COMMAND, command, msg), ADMIN_CHANNEL))
+
+
 class TestIgnoresSelfMessages(BaseTest):
     def test_ignore_self(self):
         # Make a message the bot would normally respond to, but from itself.
