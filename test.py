@@ -60,6 +60,7 @@ class BaseTest(unittest.TestCase):
 
 class TestCreateAndDeleteCommands(BaseTest):
     # TODO if we ever add more cases, just refactor this into table-driven tests
+    # When we do that, add test for random-add-all vs random-addall bug.
 
     def test_save_and_delete(self):
         # Save a command.
@@ -165,7 +166,7 @@ class TestRandomCommands(BaseTest):
         # Save 4 possible responses to the "test" command.
         self._save_random("test", "1")
         self.assertIsNotNone(self.send(
-            message("{} test 2 3 4".format(main.ADD_ALL_COMMAND), ADMIN_CHANNEL)))
+            message("{} test 2 3\n4".format(main.ADD_ALL_COMMAND), ADMIN_CHANNEL)))
 
         # Count the occurrences of each response.
         totals = {"1": 0, "2": 0, "3": 0, "4": 0}

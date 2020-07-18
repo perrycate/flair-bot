@@ -13,11 +13,11 @@ DEFAULT_DB_NAME = 'newton_storage.db'
 DEFAULT_ADMIN_CHANNEL = 'newtons-study'
 
 SUMMONING_KEY = '~'
-SAVE_COMMAND = '!save'
-RANDOM_COMMAND = '!random-add'
-ADD_ALL_COMMAND = '!random-addall'
-DELETE_COMMAND = '!delete'
-HELP_COMMAND = '!help'
+SAVE_COMMAND = '!save '
+RANDOM_COMMAND = '!random-add '
+ADD_ALL_COMMAND = '!random-addall '
+DELETE_COMMAND = '!delete '
+HELP_COMMAND = '!help '
 
 
 class Bot(discord.Client):
@@ -37,8 +37,7 @@ class Bot(discord.Client):
 
         if message.content.startswith(SUMMONING_KEY):
             # Command is the first word, not including the summoning key
-            command = message.content.split(
-                ' ')[0][len(SUMMONING_KEY):].lower()
+            command = message.content.split()[0][len(SUMMONING_KEY):].lower()
             content = self._db.get(command)
             if content != '':
                 await message.channel.send(content)
@@ -49,7 +48,7 @@ class Bot(discord.Client):
             return
 
         if message.content.startswith(DELETE_COMMAND):
-            strs = message.content.split(' ')
+            strs = message.content.split()
             if len(strs) != 2:
                 await message.channel.send("Sorry, bud. I need the format '{} <command>'.".format(DELETE_COMMAND))
                 return
@@ -61,7 +60,7 @@ class Bot(discord.Client):
             return
 
         if message.content.startswith(SAVE_COMMAND):
-            strs = message.content.split(' ')
+            strs = message.content.split()
             if len(strs) < 3:
                 await message.channel.send("Sorry, I need the format '{} <keyword> <response content>'.".format(SAVE_COMMAND))
                 return
@@ -86,7 +85,7 @@ class Bot(discord.Client):
             return
 
         if message.content.startswith(ADD_ALL_COMMAND):
-            strs = message.content.split(' ')
+            strs = message.content.split()
             if len(strs) < 3:
                 await message.channel.send("Sorry, I need the format '{} <keyword> <response> <response> <response>...'.".format(RANDOM_COMMAND))
                 return
@@ -102,7 +101,7 @@ class Bot(discord.Client):
             return
 
         if message.content.startswith(RANDOM_COMMAND):
-            strs = message.content.split(' ')
+            strs = message.content.split()
             if len(strs) < 3:
                 await message.channel.send("Sorry, I need the format '{} <keyword> <response content>'.".format(RANDOM_COMMAND))
                 return
