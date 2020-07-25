@@ -28,7 +28,7 @@ class Bot(discord.Client):
         self._admin_channel = admin_channel_name
 
     async def on_ready(self):
-        print("Logged in as {}".format(self.user))
+        print(f"Logged in as {self.user}")
 
     async def on_message(self, message):
         # Ignore messages from ourself, otherwise we'll infinite loop.
@@ -50,19 +50,18 @@ class Bot(discord.Client):
         if message.content.startswith(DELETE_COMMAND):
             strs = message.content.split()
             if len(strs) != 2:
-                await message.channel.send("Sorry, bud. I need the format '{} <command>'.".format(DELETE_COMMAND))
+                await message.channel.send(f"Sorry, bud. I need the format '{DELETE_COMMAND} <command>'.")
                 return
             command = strs[1].lower()
             self._db.delete(command)
-            await message.channel.send("Got it! Will no longer respond to '{}{}'.".format(SUMMONING_KEY, command))
-            print("{}: {} deleted '{}'".format(
-                datetime.now(), message.author.name, command))
+            await message.channel.send(f"Got it! Will no longer respond to '{SUMMONING_KEY}{command}'.")
+            print(f"{datetime.now()}: {message.author.name} deleted '{command}'")
             return
 
         if message.content.startswith(SAVE_COMMAND):
             strs = message.content.split()
             if len(strs) < 3:
-                await message.channel.send("Sorry, I need the format '{} <keyword> <response content>'.".format(SAVE_COMMAND))
+                await message.channel.send(f"Sorry, I need the format '{SAVE_COMMAND} <keyword> <response content>'.")
                 return
 
             # If something is a random command (has multiple responses), don't
@@ -79,15 +78,15 @@ class Bot(discord.Client):
             content = ' '.join(strs[2:])
             self._db.delete(command)
             self._db.save(message.author.name, command, content)
-            await message.channel.send("Got it! Will respond to '{}{}' with '{}'".format(SUMMONING_KEY, command, content))
-            print("{}: {} set '{}' to '{}'".format(
-                datetime.now(), message.author.name, command, content))
+            await message.channel.send(f"Got it! Will respond to '{SUMMONING_KEY}{command}' with '{content}'")
+            print(
+                f"{datetime.now()}: {message.author.name} set '{command}' to '{content}'")
             return
 
         if message.content.startswith(ADD_ALL_COMMAND):
             strs = message.content.split()
             if len(strs) < 3:
-                await message.channel.send("Sorry, I need the format '{} <keyword> <response> <response> <response>...'.".format(RANDOM_COMMAND))
+                await message.channel.send(f"Sorry, I need the format '{RANDOM_COMMAND} <keyword> <response> <response> <response>...'.")
                 return
             command = strs[1].lower()
             content_words = strs[2:]
@@ -95,45 +94,46 @@ class Bot(discord.Client):
                 self._db.save(message.author.name, command, w)
 
             c = self._db.count(command)
-            await message.channel.send("Got it! Will sometimes respond to '{}{}' with one of those {} responses. ({} total.)".format(SUMMONING_KEY, command, len(content_words), c))
-            print("{}: {} added '{}' to random command '{}'".format(
-                datetime.now(), message.author.name, content_words, command))
+            await message.channel.send(f"Got it! Will sometimes respond to '{SUMMONING_KEY}{command}' with one of those {len(content_words)} responses. ({c} total.)")
+            print(
+                f"{datetime.now()}: {message.author.name} added '{content_words}' to random command '{command}'")
             return
 
         if message.content.startswith(RANDOM_COMMAND):
             strs = message.content.split()
             if len(strs) < 3:
-                await message.channel.send("Sorry, I need the format '{} <keyword> <response content>'.".format(RANDOM_COMMAND))
+                await message.channel.send(f"Sorry, I need the format '{RANDOM_COMMAND} <keyword> <response content>'.")
                 return
             command = strs[1].lower()
             content = ' '.join(strs[2:])
             self._db.save(message.author.name, command, content)
             c = self._db.count(command)
-            await message.channel.send("Got it! Will sometimes respond to '{}{}' with '{}'. (one of {} possible responses).".format(SUMMONING_KEY, command, content, c))
-            print("{}: {} added '{}' to random command '{}'".format(
-                datetime.now(), message.author.name, content, command))
+            await message.channel.send(f"Got it! Will sometimes respond to '{SUMMONING_KEY}{command}' with '{content}'. (one of {c} possible responses).")
+            print(
+                f"{datetime.now()}: {message.author.name} added '{content}' to random command '{command}'")
             return
 
         if message.content.startswith(HELP_COMMAND):
             await message.channel.send(
-                """
-Save a command: {} <keyword> <response content>
-Save a random command: {} <keyword> <response content> ({} to add each word as a separate response)
-Use a command: {}<keyword>
-Delete a command: {} <keyword>
-""".format(SAVE_COMMAND, RANDOM_COMMAND, ADD_ALL_COMMAND, SUMMONING_KEY, DELETE_COMMAND))
+                f"""
+Save a command: {SAVE_COMMAND} <keyword> <response content>
+Save a random command: {RANDOM_COMMAND} <keyword> <response content> ({ADD_ALL_COMMAND} to add each word as a separate response)
+Use a command: {SUMMONING_KEY}<keyword>
+Delete a command: {DELETE_COMMAND} <keyword>
+""")
 
 
 def _main():
     # Set admin channel, or notify what the default is.
     admin_channel = DEFAULT_ADMIN_CHANNEL
     if ADMIN_CHANNEL_ENV_VAR not in os.environ:
-        print("Using the default admin channel ({}). To change it, run again with the prefix '{}=<channel name>'".format(
-            admin_channel, ADMIN_CHANNEL_ENV_VAR))
+        print(
+            f"Using the default admin channel ({admin_channel}). To change it, run again with the prefix '{ADMIN_CHANNEL_ENV_VAR}=<channel name>'")
     else:
         admin_channel = os.environ[ADMIN_CHANNEL_ENV_VAR]
 
-    print("Admin channel is '{}'. Will only accept !save and !delete commands if they appear there.".format(admin_channel))
+    print(
+        f"Admin channel is '{admin_channel}'. Will only accept !save and !delete commands if they appear there.")
 
     # Create bot instance.
     db = Storage(DEFAULT_DB_NAME)

@@ -14,8 +14,18 @@ TEST_DB = 'test_db_please_ignore.db'
 
 ADMIN_CHANNEL = 'admin-channel'
 
+# Just to save a couple characters.
+SUMMON_KEY = main.SUMMONING_KEY
+SAVE = main.SAVE_COMMAND
+RANDOM = main.RANDOM_COMMAND
+ADD_ALL = main.ADD_ALL_COMMAND
+DELETE = main.DELETE_COMMAND
+HELP = main.HELP_COMMAND
+
 
 # Contains common setup, teardown, helper methods to be used by test cases.
+
+
 class BaseTest(unittest.TestCase):
     def setUp(self):
         # Create an empty database object.
@@ -64,14 +74,12 @@ class TestCreateAndDeleteCommands(BaseTest):
 
     def test_save_and_delete(self):
         # Save a command.
-        r = self.send(message("{} test I say something now".format(
-            main.SAVE_COMMAND), ADMIN_CHANNEL))
-        self.assertContainsAll(r, [
-            '{}test'.format(main.SUMMONING_KEY),
-            "I say something now"])
+        r = self.send(
+            message(f"{SAVE} test I say something now", ADMIN_CHANNEL))
+        self.assertContainsAll(r, [f"{SUMMON_KEY}test", "I say something now"])
 
         # Trigger it, make sure we get the response we want.
-        r = self.send(message('{}test'.format(main.SUMMONING_KEY)))
+        r = self.send(message(f"{SUMMON_KEY}test"))
         self.assertEqual(r, "I say something now")
 
     def test_overwrite(self):
@@ -79,65 +87,58 @@ class TestCreateAndDeleteCommands(BaseTest):
 
         # Save a command and overwrite it multiple times
         for i in range(20):
-            self.send(message("{} test {}".format(
-                main.SAVE_COMMAND, i), ADMIN_CHANNEL))
+            self.send(message(f"{SAVE} test {i}", ADMIN_CHANNEL))
 
         # Trigger it, make sure we get the last response.
-        r = self.send(message('{}test'.format(main.SUMMONING_KEY)))
-        self.assertEqual(r, "{}".format(iterations-1))
+        r = self.send(message(f'{SUMMON_KEY}test'))
+        self.assertEqual(r, f"{iterations-1}")
 
     def test_delete(self):
         # Save a command.
-        r = self.send(message("{} test I say something else".format(
-            main.SAVE_COMMAND), ADMIN_CHANNEL))
+        r = self.send(
+            message(f"{SAVE} test I say something else", ADMIN_CHANNEL))
         self.assertIsNotNone(r)
 
         # Delete it.
-        r = self.send(message("{} test".format(
-            main.DELETE_COMMAND), ADMIN_CHANNEL))
+        r = self.send(message(f"{DELETE} test", ADMIN_CHANNEL))
         self.assertContainsAll(r, ["test"])
 
         # Make sure the bot does not respond to it
-        r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+        r = self.send(message(f"{SUMMON_KEY}test"))
         self.assertIsNone(r)
 
     def test_save_only_works_in_admin_channel(self):
         # Make sure our save request is ignored.
-        r = self.send(
-            message("{} test I say something else".format(main.SAVE_COMMAND)))
+        r = self.send(message(f"{SAVE} test I say something else"))
         self.assertIsNone(r)
 
     def test_delete_only_works_in_admin_channel(self):
         # Save a command.
-        r = self.send(message("{} test I say something".format(
-            main.SAVE_COMMAND), ADMIN_CHANNEL))
+        r = self.send(message(f"{SAVE} test I say something", ADMIN_CHANNEL))
         self.assertIsNotNone(r)
 
         # Delete it, but in a non-admin channel.
-        r = self.send(message("{} test".format(main.DELETE_COMMAND)))
+        r = self.send(message(f"{DELETE} test"))
         self.assertIsNone(r)
 
         # Make sure the bot still responds
-        r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+        r = self.send(message(f"{SUMMON_KEY}test"))
         self.assertEqual(r, "I say something")
 
     def test_ignores_unset_commands(self):
         # Use of the same "test" command name we use in the other tests is
         # intentional. Consider it a bonus sanity check to make sure we're
         # properly resetting the database between every test.
-        self.assertIsNone(
-            self.send(message("{}test".format(main.SUMMONING_KEY))))
+        self.assertIsNone(self.send(message(f"{SUMMON_KEY}test")))
 
 
 class TestRandomCommands(BaseTest):
     def test_only_works_in_admin_channel(self):
         # Attempt to trigger the random command in a non-admin channel.
-        r = self.send(
-            message("{} test an arbitrary response.".format(main.RANDOM_COMMAND)))
+        r = self.send(message(f"{RANDOM} test an arbitrary response."))
         self.assertIsNone(r)
 
-        self.assertIsNone(
-            self.send((message("test".format(main.SUMMONING_KEY)))))
+        self.assertIsNone(self.send((message(f"{SUMMON_KEY}test"))))
 
     def test_responds_randomly(self):
         # Save 3 possible responses to the "test" command.
@@ -151,7 +152,7 @@ class TestRandomCommands(BaseTest):
         # Count the occurrences of each response.
         totals = {"1": 0, "2": 0, "3": 0}
         for i in range(100):
-            r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+            r = self.send(message(f"{SUMMON_KEY}test"))
             n = r.split()[1]
             totals[n] += 1
 
@@ -165,13 +166,13 @@ class TestRandomCommands(BaseTest):
     def test_add_all(self):
         # Save 4 possible responses to the "test" command.
         self._save_random("test", "1")
-        self.assertIsNotNone(self.send(
-            message("{} test 2 3\n4".format(main.ADD_ALL_COMMAND), ADMIN_CHANNEL)))
+        self.assertIsNotNone(
+            self.send(message(f"{ADD_ALL} test 2 3\n4", ADMIN_CHANNEL)))
 
         # Count the occurrences of each response.
         totals = {"1": 0, "2": 0, "3": 0, "4": 0}
         for i in range(100):
-            r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+            r = self.send(message(f"{SUMMON_KEY}test"))
             totals[r] += 1
 
         # Check each command got called at least a decent bit.
@@ -187,25 +188,23 @@ class TestRandomCommands(BaseTest):
         self._save_random("test", "arbitrary response")
         self._save_random("test", "different arbitrary response")
         r = self.send(
-            message("{} test a different arbitrary response".format(main.SAVE_COMMAND), ADMIN_CHANNEL))
+            message(f"{SAVE} test a different arbitrary response", ADMIN_CHANNEL))
 
         # Should have failed with an error telling the user to delete it first.
-        self.assertContainsAll(
-            r, ["Sorry", "{} test".format(main.DELETE_COMMAND)])
+        self.assertContainsAll(r, ["Sorry", f"{DELETE} test"])
 
         # Could be either response
-        self.assertIn("arbitrary response", self.send(
-            message("{}test".format(main.SUMMONING_KEY))))
+        self.assertIn("arbitrary response",
+                      self.send(message(f"{SUMMON_KEY}test")))
 
     def test_overwrite_to_random(self):
         # Turn a single command into a random command.
-        self.send(
-            message("{} test response 1".format(main.SAVE_COMMAND), ADMIN_CHANNEL))
+        self.send(message(f"{SAVE} test response 1", ADMIN_CHANNEL))
         r = self._save_random("test", "response 2")
 
         totals = {"1": 0, "2": 0}
         for i in range(100):
-            r = self.send(message("{}test".format(main.SUMMONING_KEY)))
+            r = self.send(message(f"{SUMMON_KEY}test"))
             n = r.split()[1]
             totals[n] += 1
 
@@ -217,8 +216,7 @@ class TestRandomCommands(BaseTest):
         self._save_random("test", "arbitrary response 2")
 
         self.assertIsNotNone(
-            self.send(message("{} test".format(
-                main.DELETE_COMMAND), ADMIN_CHANNEL)))
+            self.send(message(f"{DELETE} test", ADMIN_CHANNEL)))
 
         # We should not respond, since we deleted it.
         self.assertIsNone(self.send(message("{}test", main.SUMMONING_KEY)))
@@ -226,7 +224,7 @@ class TestRandomCommands(BaseTest):
     # Yes, I'm that lazy
 
     def _save_random(self, command, msg):
-        return self.send(message("{} {} {}".format(main.RANDOM_COMMAND, command, msg), ADMIN_CHANNEL))
+        return self.send(message(f"{RANDOM} {command} {msg}", ADMIN_CHANNEL))
 
 
 class TestIgnoresSelfMessages(BaseTest):
