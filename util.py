@@ -15,6 +15,10 @@ class Storage:
             return ""
         return rows[0][0]
 
+    def list_commands(self):
+        return self._read(
+            '''SELECT trigger, user, (strftime('%s.%f')-date) FROM commands WHERE enabled=1 GROUP BY trigger ORDER BY trigger;''')
+
     def count(self, command):
         rows = self._read(
             '''SELECT COUNT(*) FROM commands where trigger=? AND enabled=1;''', command)

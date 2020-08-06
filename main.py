@@ -3,7 +3,7 @@ import discord
 import os
 import sys
 from datetime import datetime
-
+from datetime import timedelta
 from util import Storage
 
 TOKEN_ENV_VAR = 'DISCORD_BOT_TOKEN'
@@ -16,8 +16,9 @@ SUMMONING_KEY = '~'
 SAVE_COMMAND = '!save '
 RANDOM_COMMAND = '!random-add '
 ADD_ALL_COMMAND = '!random-addall '
+LIST_COMMAND = '!list'
 DELETE_COMMAND = '!delete '
-HELP_COMMAND = '!help '
+HELP_COMMAND = '!help'
 
 
 class Bot(discord.Client):
@@ -113,6 +114,16 @@ class Bot(discord.Client):
                 f"{datetime.now()}: {message.author.name} added '{content}' to random command '{command}'")
             return
 
+        if message.content.startswith(LIST_COMMAND):
+            lines = []
+            for command in self._db.list_commands():
+                trigger, user, elapsed_seconds = command
+                elapsed = timedelta(seconds=round(elapsed_seconds))
+
+                lines.append(
+                    f"{SUMMONING_KEY}{trigger}: last updated by {user} {elapsed.days} days and {elapsed.seconds//(60**2)} hours ago")
+            await message.channel.send('\n'.join(lines))
+
         if message.content.startswith(HELP_COMMAND):
             await message.channel.send(
                 f"""
@@ -120,6 +131,7 @@ Save a command: {SAVE_COMMAND} <keyword> <response content>
 Save a random command: {RANDOM_COMMAND} <keyword> <response content> ({ADD_ALL_COMMAND} to add each word as a separate response)
 Use a command: {SUMMONING_KEY}<keyword>
 Delete a command: {DELETE_COMMAND} <keyword>
+List all commands: {LIST_COMMAND}
 """)
 
 

@@ -19,13 +19,12 @@ SUMMON_KEY = main.SUMMONING_KEY
 SAVE = main.SAVE_COMMAND
 RANDOM = main.RANDOM_COMMAND
 ADD_ALL = main.ADD_ALL_COMMAND
+LIST = main.LIST_COMMAND
 DELETE = main.DELETE_COMMAND
 HELP = main.HELP_COMMAND
 
 
 # Contains common setup, teardown, helper methods to be used by test cases.
-
-
 class BaseTest(unittest.TestCase):
     def setUp(self):
         # Create an empty database object.
@@ -62,11 +61,11 @@ class BaseTest(unittest.TestCase):
             self.assertContainsAll(resp, expected_resp)
         else:
             raise TypeError(f"Illegal expected response of type" /
-            "{type(expected_resp)}. Must be a string, list, or None.")
-
+                            "{type(expected_resp)}. Must be a string, list, or None.")
 
     # Trigger the bot with the given "discord.Message" (must be a Mock).
     # Returns the text of the bot's response, or None if there was no response.
+
     def send(self, message):
         # The real message.channel.send is an async function. Make it return a
         # future to mimic the real behavior.
@@ -114,7 +113,8 @@ class TestCreateAndDeleteCommands(BaseTest):
 
     def test_delete(self):
         # Save a command.
-        self.send_check(message(f"{SAVE} test I say something else", ADMIN), [])
+        self.send_check(
+            message(f"{SAVE} test I say something else", ADMIN), [])
 
         # Delete it.
         self.send_check(message(f"{DELETE} test", ADMIN), ["test"])
@@ -143,6 +143,38 @@ class TestCreateAndDeleteCommands(BaseTest):
         self.send_check(message(f"{SUMMON_KEY}test"), None)
 
 
+class TestListCommands(BaseTest):
+    def test_lists_commands(self):
+        self.send_check(message(f"{SAVE} test1 this is a test", ADMIN), [])
+        self.send_check(message(f"{SAVE} test2 this is a test", ADMIN), [])
+
+        # Should have both added commands.
+        self.send_check(message(f"{LIST}", ADMIN), ["test1", "test2"])
+
+    def test_does_not_list_deleted_commands(self):
+        self.send_check(message(f"{SAVE} test1 this is a test", ADMIN), [])
+        self.send_check(message(f"{SAVE} test2 this is a test", ADMIN), [])
+
+        # Delete one of the commands.
+        self.send_check(message(f"{DELETE} test2", ADMIN), [])
+
+        # Should still have the first command.
+        self.send_check(message(f"{LIST}", ADMIN), ["test1"])
+
+        # Should not list the second command, since it was deleted.
+        r = self.send(message(f"{LIST}", ADMIN))
+        self.assertTrue("test2" not in r)
+
+    def test_does_not_list_random_commands_multiple_times(self):
+        self.send_check(message(f"{RANDOM} test1 this is a test", ADMIN), [])
+        self.send_check(
+            message(f"{RANDOM} test1 this is another test", ADMIN), [])
+
+        # Should only include "test1" once.
+        r = self.send(message(f"{LIST}", ADMIN))
+        self.assertEqual(r.count("test1"), 1)
+
+
 class TestRandomCommands(BaseTest):
     def test_only_works_in_admin_channel(self):
         # Attempt to trigger the random command in a non-admin channel.
@@ -152,14 +184,14 @@ class TestRandomCommands(BaseTest):
     def test_responds_randomly(self):
         # Save 3 possible responses to the "test" command.
         self.send_check(
-                message(f"{RANDOM} test response 1", ADMIN),
-                ["test", "response 1"])
+            message(f"{RANDOM} test response 1", ADMIN),
+            ["test", "response 1"])
         self.send_check(
-                message(f"{RANDOM} test response 2", ADMIN),
-                ["test", "response 2"])
+            message(f"{RANDOM} test response 2", ADMIN),
+            ["test", "response 2"])
         self.send_check(
-                message(f"{RANDOM} test response 3", ADMIN),
-                ["test", "response 3"])
+            message(f"{RANDOM} test response 3", ADMIN),
+            ["test", "response 3"])
 
         # Count the occurrences of each response.
         totals = {"1": 0, "2": 0, "3": 0}
