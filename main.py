@@ -130,7 +130,7 @@ class Bot(discord.Client):
                 elapsed = timedelta(seconds=round(elapsed_seconds))
 
                 lines.append(
-                    f"{SUMMONING_KEY}{trigger}: last updated by {user} {elapsed.days} days and {elapsed.seconds//(60**2)} hours ago")
+                    f"**{SUMMONING_KEY}{trigger}**: last updated by {user} {elapsed.days} days and {elapsed.seconds//(60**2)} hours ago")
 
             # Discord limits the number of characters that can be in a message.
             # Split up if necessary.
