@@ -174,6 +174,9 @@ class TestListCommands(BaseTest):
         r = self.send(message(f"{LIST}", ADMIN))
         self.assertEqual(r.count("test1"), 1)
 
+    # TODO think up a decent way to test splitting up the response if too many
+    # commands have been added. Right now the effort doesn't seem worth it.
+
 
 class TestRandomCommands(BaseTest):
     def test_only_works_in_admin_channel(self):

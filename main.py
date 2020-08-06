@@ -20,6 +20,15 @@ LIST_COMMAND = '!list'
 DELETE_COMMAND = '!delete '
 HELP_COMMAND = '!help'
 
+# The maximum number of characters that a message can be before discord rejects
+# the request.
+#
+# Most of the time we don't even check this, and just raise an exception (which
+# is then ignored) if discord rejects the message for being too long. This is
+# here for the special cases when we actually give a shit and want to make sure
+# the message is actually sent.
+MESSAGE_SIZE_LIMIT = 2000
+
 
 class Bot(discord.Client):
 
@@ -122,7 +131,23 @@ class Bot(discord.Client):
 
                 lines.append(
                     f"{SUMMONING_KEY}{trigger}: last updated by {user} {elapsed.days} days and {elapsed.seconds//(60**2)} hours ago")
-            await message.channel.send('\n'.join(lines))
+
+            # Discord limits the number of characters that can be in a message.
+            # Split up if necessary.
+            line_queue = []
+            total_chars = 0
+            for line in lines:
+                length = len(line)
+
+                # If this line would exceed the size limit, clear the queue
+                # by sending all the previous unsent lines.
+                if total_chars + length > MESSAGE_SIZE_LIMIT:
+                    await message.channel.send('\n'.join(line_queue))
+                    line_queue = []
+                    total_chars = 0
+                line_queue.append(line)
+                total_chars += length+1  # +1 is for the \n
+            await message.channel.send('\n'.join(line_queue))
 
         if message.content.startswith(HELP_COMMAND):
             await message.channel.send(
