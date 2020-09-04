@@ -31,7 +31,6 @@ MESSAGE_SIZE_LIMIT = 2000
 
 
 class Bot(discord.Client):
-
     def __init__(self, storage, admin_channel_name):
         super().__init__()
         self._db = storage
@@ -69,7 +68,7 @@ class Bot(discord.Client):
             return
 
         if message.content.startswith(SAVE_COMMAND):
-            strs = message.content.split()
+            strs = message.content.split(maxsplit=2)
             if len(strs) < 3:
                 await message.channel.send(f"Sorry, I need the format '{SAVE_COMMAND} <keyword> <response content>'.")
                 return
@@ -85,7 +84,7 @@ class Bot(discord.Client):
                 return
 
             command = strs[1].lower()
-            content = ' '.join(strs[2:])
+            content = strs[2]
             self._db.delete(command)
             self._db.save(message.author.name, command, content)
             await message.channel.send(f"Got it! Will respond to '{SUMMONING_KEY}{command}' with '{content}'")
@@ -110,12 +109,12 @@ class Bot(discord.Client):
             return
 
         if message.content.startswith(RANDOM_COMMAND):
-            strs = message.content.split()
+            strs = message.content.split(maxsplit=2)
             if len(strs) < 3:
                 await message.channel.send(f"Sorry, I need the format '{RANDOM_COMMAND} <keyword> <response content>'.")
                 return
             command = strs[1].lower()
-            content = ' '.join(strs[2:])
+            content = strs[2]
             self._db.save(message.author.name, command, content)
             c = self._db.count(command)
             await message.channel.send(f"Got it! Will sometimes respond to '{SUMMONING_KEY}{command}' with '{content}'. (one of {c} possible responses).")
