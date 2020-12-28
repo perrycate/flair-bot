@@ -4,7 +4,7 @@ import os
 import sys
 from datetime import datetime
 from datetime import timedelta
-from util import Storage
+from storage import CmdStore
 
 TOKEN_ENV_VAR = 'DISCORD_BOT_TOKEN'
 ADMIN_CHANNEL_ENV_VAR = 'DISCORD_ADMIN_CHANNEL'
@@ -39,6 +39,7 @@ class Bot(discord.Client):
     async def on_ready(self):
         print(f"Logged in as {self.user}")
 
+    # TODO Now that I better understand discord.py, I desperately need to break these out into smaller commands.
     async def on_message(self, message):
         # Ignore messages from ourself, otherwise we'll infinite loop.
         if message.author == self.user:
@@ -172,7 +173,7 @@ def _main():
         f"Admin channel is '{admin_channel}'. Will only accept !save and !delete commands if they appear there.")
 
     # Create bot instance.
-    db = Storage(DEFAULT_DB_NAME)
+    db = CmdStore(DEFAULT_DB_NAME)
     newton = Bot(db, admin_channel)
 
     # Check for auth token.

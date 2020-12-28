@@ -7,7 +7,7 @@ import os
 from unittest.mock import MagicMock
 
 import main
-from util import Storage
+from storage import CmdStore
 
 # Make sure this doesn't coincide with a sqlite db file that's really used.
 TEST_DB = 'test_db_please_ignore.db'
@@ -32,7 +32,7 @@ class BaseTest(unittest.TestCase):
         # it might not have been.
         if os.path.exists(TEST_DB):
             os.remove(TEST_DB)
-        db = Storage(TEST_DB)
+        db = CmdStore(TEST_DB)
 
         # Create a bot to test
         self.bot = main.Bot(db, ADMIN)
