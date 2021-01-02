@@ -4,7 +4,7 @@ import discord
 import time
 import asyncio
 import os
-from unittest.mock import MagicMock
+from unittest.mock import Mock, MagicMock
 
 import main
 from storage import CmdStore
@@ -23,9 +23,14 @@ LIST = main.LIST_COMMAND
 DELETE = main.DELETE_COMMAND
 HELP = main.HELP_COMMAND
 
+# TODO Testing flairs
+# make self.get_guild(_) return an object that returns an object with id when get_role(id) is called
+# Make helper function that returns all added roles (all times payload.member.add_roles(<objects with id>) was called)
 
-# Contains common setup, teardown, helper methods to be used by test cases.
-class BaseTest(unittest.TestCase):
+
+# Contains common setup, teardown, helper methods to be used by test cases
+# testing the CommandSetter Cog..
+class CommandSetterTest(unittest.TestCase):
     def setUp(self):
         # Create an empty database object.
         # TEST_DB should be deleted in tearDown, but if the test was interrupted
@@ -35,7 +40,9 @@ class BaseTest(unittest.TestCase):
         db = CmdStore(TEST_DB)
 
         # Create a bot to test
-        self.bot = main.Bot(db, ADMIN)
+        self.test_account = MagicMock(spec=discord.ClientUser)
+        self.bot = MagicMock(wraps=main.CommandSetter(
+            self.test_account, db, ADMIN))
 
     def tearDown(self):
         # Remove our test db for cleanliness
@@ -63,9 +70,8 @@ class BaseTest(unittest.TestCase):
             raise TypeError(f"Illegal expected response of type" /
                             "{type(expected_resp)}. Must be a string, list, or None.")
 
-    # Trigger the bot with the given "discord.Message" (must be a Mock).
+    # Triggers the bot with the given "discord.Message" (must be a Mock).
     # Returns the text of the bot's response, or None if there was no response.
-
     def send(self, message):
         # The real message.channel.send is an async function. Make it return a
         # future to mimic the real behavior.
@@ -84,12 +90,13 @@ class BaseTest(unittest.TestCase):
     # Is case-insensitive.
     # (Using camel case for consistency with python's testing library.)
     def assertContainsAll(self, text, fragments):
+        self.assertIsNotNone(text)
         m = text.lower()
         for f in fragments:
             self.assertIn(f.lower(), m)
 
 
-class TestCreateAndDeleteCommands(BaseTest):
+class TestCreateAndDeleteCommands(CommandSetterTest):
     # TODO refactor this into more table-driven tests
     # TODO add test for random-add-all vs random-addall bug.
 
@@ -143,7 +150,7 @@ class TestCreateAndDeleteCommands(BaseTest):
         self.send_check(message(f"{SUMMON_KEY}test"), None)
 
 
-class TestListCommands(BaseTest):
+class TestListCommands(CommandSetterTest):
     def test_lists_commands(self):
         self.send_check(message(f"{SAVE} test1 this is a test", ADMIN), [])
         self.send_check(message(f"{SAVE} test2 this is a test", ADMIN), [])
@@ -178,7 +185,7 @@ class TestListCommands(BaseTest):
     # commands have been added. Right now the effort doesn't seem worth it.
 
 
-class TestRandomCommands(BaseTest):
+class TestRandomCommands(CommandSetterTest):
     def test_only_works_in_admin_channel(self):
         # Attempt to trigger the random command in a non-admin channel.
         self.send_check(message(f"{RANDOM} test an arbitrary response."), None)
@@ -267,19 +274,19 @@ class TestRandomCommands(BaseTest):
         self.send_check(message("{}test", main.SUMMONING_KEY), None)
 
 
-class TestIgnoresSelfMessages(BaseTest):
+class TestIgnoresSelfMessages(CommandSetterTest):
     def test_ignore_self(self):
         # Make a message the bot would normally respond to, but from itself.
         # This test might not work properly if the help command isn't working,
         # but that's ok because the admin test should fail in that case. :P
         m = message(main.HELP_COMMAND, ADMIN)
-        m.author = self.bot.user
+        m.author = self.test_account
 
         # Make sure we don't get a response.
         self.send_check(m, None)
 
 
-class TestHelp(BaseTest):
+class TestHelp(CommandSetterTest):
     def test_help_works_in_admin_channel(self):
         r = self.send(message(main.HELP_COMMAND, ADMIN))
         self.assertContainsAll(r, ['Save', 'Use', 'Delete'])
@@ -300,7 +307,7 @@ def empty_future():
 def message(text, channel='arbitrary-channel'):
     m = MagicMock(spec=discord.Message)
     m.channel = MagicMock(spec=discord.TextChannel)
-    m.author = MagicMock(spec=discord.abc.User)
+    m.author = Mock(spec=discord.Member)
 
     m.content = text
     m.channel.name = channel

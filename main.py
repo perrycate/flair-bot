@@ -2,6 +2,9 @@
 import discord
 import os
 import sys
+
+from discord.ext import commands
+
 from datetime import datetime
 from datetime import timedelta
 from storage import CmdStore
@@ -12,13 +15,14 @@ ADMIN_CHANNEL_ENV_VAR = 'DISCORD_ADMIN_CHANNEL'
 DEFAULT_DB_NAME = 'newton_storage.db'
 DEFAULT_ADMIN_CHANNEL = 'newtons-study'
 
+COMMAND_PREFIX = _p = '!'
 SUMMONING_KEY = '~'
-SAVE_COMMAND = '!save '
-RANDOM_COMMAND = '!random-add '
-ADD_ALL_COMMAND = '!random-addall '
-LIST_COMMAND = '!list'
-DELETE_COMMAND = '!delete '
-HELP_COMMAND = '!help'
+SAVE_COMMAND = f'{_p}save '
+RANDOM_COMMAND = f'{_p}random-add '
+ADD_ALL_COMMAND = f'{_p}random-addall '
+LIST_COMMAND = f'{_p}list'
+DELETE_COMMAND = f'{_p}delete '
+HELP_COMMAND = f'{_p}help'
 
 # The maximum number of characters that a message can be before discord rejects
 # the request.
@@ -30,19 +34,17 @@ HELP_COMMAND = '!help'
 MESSAGE_SIZE_LIMIT = 2000
 
 
-class Bot(discord.Client):
-    def __init__(self, storage, admin_channel_name):
-        super().__init__()
+class CommandSetter(commands.Cog):
+    def __init__(self, user, storage, admin_channel):
+        self._user = user
         self._db = storage
-        self._admin_channel = admin_channel_name
-
-    async def on_ready(self):
-        print(f"Logged in as {self.user}")
+        self._admin_channel = admin_channel
 
     # TODO Now that I better understand discord.py, I desperately need to break these out into smaller commands.
+    @commands.Cog.listener()
     async def on_message(self, message):
         # Ignore messages from ourself, otherwise we'll infinite loop.
-        if message.author == self.user:
+        if message.author == self._user:
             return
 
         if message.content.startswith(SUMMONING_KEY):
@@ -158,6 +160,17 @@ Use a command: {SUMMONING_KEY}<keyword>
 Delete a command: {DELETE_COMMAND} <keyword>
 List all commands: {LIST_COMMAND}
 """)
+
+
+class Bot(commands.Bot):
+    def __init__(self, storage, admin_channel_name):
+        super().__init__(command_prefix=COMMAND_PREFIX)
+        self._db = storage
+        self._admin_channel = admin_channel_name
+        self.add_cog(CommandSetter(self.user, storage, admin_channel_name))
+
+    async def on_ready(self):
+        print(f"Logged in as {self.user}")
 
 
 def _main():
