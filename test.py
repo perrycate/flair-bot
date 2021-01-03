@@ -29,7 +29,7 @@ HELP = main.HELP_COMMAND
 
 
 # Contains common setup, teardown, helper methods to be used by test cases
-# testing the CommandSetter Cog..
+# testing the CommandSetter Cog.
 class CommandSetterTest(unittest.TestCase):
     def setUp(self):
         # Create an empty database object.

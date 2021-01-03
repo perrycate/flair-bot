@@ -53,7 +53,7 @@ class FlairStore:
 
     def save(self, username, message_id, reaction_id, role_id):
         """Associates the given role_id with the given message and reaction ids."""
-        self._exec('''INSERT INTO flairs (date, user, message_id, reaction_id, role_id, enabled) VALUES(strftime('%s.%f', 'now'), ?, ?, ?, 1);''',
+        self._exec('''INSERT INTO flairs (date, user, message_id, reaction_id, role_id, enabled) VALUES(strftime('%s.%f', 'now'), ?, ?, ?, ?, 1);''',
                    username, message_id, reaction_id, role_id)
 
     def get(self, message_id, reaction_id):
