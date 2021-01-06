@@ -184,10 +184,8 @@ class Flairs(commands.Cog):
         # Register our log channels.
         # We can't do this in __init__ because we may not be logged in then.
         for g in self._bot.guilds:
-            print(g)
             log_channel = None
             for c in g.channels:
-                print(c)
                 if c.name == self._log_channel_name:
                     log_channel = c
             if log_channel is None:
