@@ -166,8 +166,9 @@ List all commands: {LIST_COMMAND}
 
 class Flairs(commands.Cog):
 
-    def __init__(self, flair_store):
+    def __init__(self, flair_store, bot):
         self._db = flair_store
+        self._bot = bot
 
     @commands.command(name="debug-flair")
     async def debug_flair(self, ctx, reaction):
@@ -176,19 +177,26 @@ class Flairs(commands.Cog):
         print(type(reaction))
         print(self._emoji_id_from_str(reaction))
 
+    @commands.command(name="debug-message")
+    async def debug_message(self, ctx, message_id):
+        print()
+        print(message_id)
+        print(type(message_id))
+        g = ctx.guild
+        print(g)
+        m = await ctx.fetch_message(message_id)
+        print(m)
+
     @commands.command(name="set-flair")
     async def set_flair(self, ctx, message_id, reaction):
         channel = ctx.message.channel
 
-        # Make sure the message actually exists
-        found_message = False
-        try:
-            found_message = (await ctx.fetch_message(message_id) is not None)
-        except Exception as e:
-            print(f"Failed to find message with id {message_id}: {e}")
-        if not found_message:
-            await channel.send("Hmm, I can't find a message with that ID. Do I have the perms to see it?")
-            return
+        # TODO Make sure the message actually exists
+        # It's not documented, but ctx.fetch_message only fetches a message
+        # from the channel this message originated from.
+        # I am yet to find a way to retrieve a message without knowing the
+        # channel it originated from, soo... We could just try every channel,
+        # but f*ck that.
 
         # Try to verify that the provided emoji is valid.
         # We can't prove that it isn't valid, but we can log a warning if we can't
@@ -210,7 +218,7 @@ class Flairs(commands.Cog):
 
         # Extract the mentioned role's ID
         if len(ctx.message.role_mentions) != 1:
-            await channel.send("Sorry, I need exactly one role mentioned.")
+            await channel.send("Sorry, I need exactly one role @mentioned.")
             return
         role = ctx.message.role_mentions[0]
 
@@ -220,17 +228,25 @@ class Flairs(commands.Cog):
         await channel.send(f"Got it! Will add the '{role.name}' role to anyone that reacts {reaction} to message {message_id}")
 
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, reaction):
-        print()
-        print(reaction)
-        print(reaction.emoji)
-        print(type(reaction.emoji))
-        print(reaction.emoji.id)
-        print(type(reaction.emoji.id))
-        print(reaction.emoji.name)
-        print(len(reaction.emoji.name))
-        print(type(reaction.emoji.name))
-        print(self._get_emoji_id(reaction.emoji))
+    async def on_raw_reaction_add(self, payload):
+        reaction_id = self._get_emoji_id(payload.emoji)
+        role_ids = self._db.get(payload.message_id, reaction_id)
+        for rID in role_ids:
+            guild = self._bot.get_guild(payload.guild_id)
+            role = guild.get_role(int(rID))
+            await payload.member.add_roles(role, reason=f"Reacted with {payload.emoji} to message {payload.message_id}.")
+            print(f"Added {role} to {payload.member}")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        reaction_id = self._get_emoji_id(payload.emoji)
+        role_ids = self._db.get(payload.message_id, reaction_id)
+        for rID in role_ids:
+            guild = self._bot.get_guild(payload.guild_id)
+            role = guild.get_role(int(rID))
+            user = await guild.fetch_member(int(payload.user_id))
+            await user.remove_roles(role, reason=f"Reacted with {payload.emoji} to message {payload.message_id}.")
+            print(f"Removed {role} from {user}")
 
     def _get_emoji_id(self, emoji: discord.PartialEmoji) -> str:
         """
@@ -280,7 +296,7 @@ class Bot(commands.Bot):
     def __init__(self, cmd_store, flair_store, admin_channel_name):
         super().__init__(command_prefix=COMMAND_PREFIX)
         self.add_cog(CommandSetter(self.user, cmd_store, admin_channel_name))
-        self.add_cog(Flairs(flair_store))
+        self.add_cog(Flairs(flair_store, self))
 
     async def on_ready(self):
         print(f"Logged in as {self.user}")
