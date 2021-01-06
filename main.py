@@ -11,11 +11,17 @@ from storage import CmdStore, FlairStore
 
 TOKEN_ENV_VAR = 'DISCORD_BOT_TOKEN'
 ADMIN_CHANNEL_ENV_VAR = 'DISCORD_ADMIN_CHANNEL'
+LOG_CHANNEL_ENV_VAR = 'DISCORD_LOG_CHANNEL'
 
-COMMAND_DB_NAME = 'newton_storage.db'
 # Keeping the DBs separate makes it less likely that a bug causes me to nuke both tables.
+COMMAND_DB_NAME = 'newton_storage.db'
 FLAIR_DB_NAME = 'newton_storage_flairs.db'
+
+# The channel where admin commands (!save, !delete, etc) can be run.
 DEFAULT_ADMIN_CHANNEL = 'newtons-study'
+# The channel where newton will log any actions taken as the result of reactions.
+# (Role add, role delete. etc.)
+DEFAULT_LOG_CHANNEL = 'newtons-reactions-log'
 
 COMMAND_PREFIX = _p = '!'
 SUMMONING_KEY = '~'
@@ -166,9 +172,29 @@ List all commands: {LIST_COMMAND}
 
 class Flairs(commands.Cog):
 
-    def __init__(self, flair_store, bot):
+    def __init__(self, flair_store, bot, log_channel):
         self._db = flair_store
         self._bot = bot
+        self._log_channel_name = log_channel
+        self._log_channels_by_guild_id = {}
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        # Register our log channels.
+        # We can't do this in __init__ because we may not be logged in then.
+        for g in self._bot.guilds:
+            print(g)
+            log_channel = None
+            for c in g.channels:
+                print(c)
+                if c.name == self._log_channel_name:
+                    log_channel = c
+            if log_channel is None:
+                print(
+                    f"No channel with name {self._log_channel_name} in guild {g.name}. "
+                    "Flairs added or removed there will only be logged to stdout.")
+                continue
+            self._log_channels_by_guild_id[g.id] = log_channel
 
     @commands.command(name="debug-flair")
     async def debug_flair(self, ctx, reaction):
@@ -185,7 +211,6 @@ class Flairs(commands.Cog):
         g = ctx.guild
         print(g)
         m = await ctx.fetch_message(message_id)
-        print(m)
 
     @commands.command(name="set-flair")
     async def set_flair(self, ctx, message_id, reaction):
@@ -226,6 +251,8 @@ class Flairs(commands.Cog):
         self._db.save(ctx.message.author.name,
                       message_id, reaction_id, role.id)
         await channel.send(f"Got it! Will add the '{role.name}' role to anyone that reacts {reaction} to message {message_id}")
+        await self._log(ctx.guild.id,
+                        f"{datetime.now()}: {ctx.message.author.name} set the '{role.name}' role to anyone that reacts {reaction}' to message '{message_id}'")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -235,7 +262,7 @@ class Flairs(commands.Cog):
             guild = self._bot.get_guild(payload.guild_id)
             role = guild.get_role(int(rID))
             await payload.member.add_roles(role, reason=f"Reacted with {payload.emoji} to message {payload.message_id}.")
-            print(f"Added {role} to {payload.member}")
+            await self._log(payload.guild_id, f"Added {role} to {payload.member}")
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload):
@@ -246,7 +273,7 @@ class Flairs(commands.Cog):
             role = guild.get_role(int(rID))
             user = await guild.fetch_member(int(payload.user_id))
             await user.remove_roles(role, reason=f"Reacted with {payload.emoji} to message {payload.message_id}.")
-            print(f"Removed {role} from {user}")
+            await self._log(payload.guild_id, f"Removed {role} from {user}")
 
     def _get_emoji_id(self, emoji: discord.PartialEmoji) -> str:
         """
@@ -291,12 +318,19 @@ class Flairs(commands.Cog):
         # format. Just return the whole thing.
         return emoji
 
+    async def _log(self, guild_id, message):
+        print(message)
+        if guild_id not in self._log_channels_by_guild_id:
+            return
+        c = self._log_channels_by_guild_id[guild_id]
+        await c.send(message)
+
 
 class Bot(commands.Bot):
-    def __init__(self, cmd_store, flair_store, admin_channel_name):
+    def __init__(self, cmd_store, flair_store, admin_channel_name, log_channel_name):
         super().__init__(command_prefix=COMMAND_PREFIX)
         self.add_cog(CommandSetter(self.user, cmd_store, admin_channel_name))
-        self.add_cog(Flairs(flair_store, self))
+        self.add_cog(Flairs(flair_store, self, log_channel_name))
 
     async def on_ready(self):
         print(f"Logged in as {self.user}")
@@ -314,10 +348,17 @@ def _main():
     print(
         f"Admin channel is '{admin_channel}'. Will only accept !save and !delete commands if they appear there.")
 
+    log_channel = DEFAULT_LOG_CHANNEL
+    if LOG_CHANNEL_ENV_VAR not in os.environ:
+        print(
+            f"Using the default log channel ({log_channel}). To change it, run again with the prefix '{LOG_CHANNEL_ENV_VAR}=<channel name>'")
+    else:
+        log_channel = os.environ[LOG_CHANNEL_ENV_VAR]
+
     # Create bot instance.
     cmd_db = CmdStore(COMMAND_DB_NAME)
     flair_db = FlairStore(FLAIR_DB_NAME)
-    newton = Bot(cmd_db, flair_db, admin_channel)
+    newton = Bot(cmd_db, flair_db, admin_channel, log_channel)
 
     # Check for auth token.
     if TOKEN_ENV_VAR not in os.environ:
