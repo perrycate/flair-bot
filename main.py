@@ -172,10 +172,11 @@ List all commands: {LIST_COMMAND}
 
 class Flairs(commands.Cog):
 
-    def __init__(self, flair_store, bot, log_channel):
+    def __init__(self, flair_store, bot, admin_channel, log_channel):
         self._db = flair_store
         self._bot = bot
         self._log_channel_name = log_channel
+        self._admin_channel_name = admin_channel
         self._log_channels_by_guild_id = {}
 
     @commands.Cog.listener()
@@ -195,6 +196,11 @@ class Flairs(commands.Cog):
                     "Flairs added or removed there will only be logged to stdout.")
                 continue
             self._log_channels_by_guild_id[g.id] = log_channel
+
+    # Ignore any commands that aren't from the admin channel.
+    # Does not apply to listeners.
+    def bot_check(self, ctx):
+        return ctx.message.channel.name == self._admin_channel_name
 
     @commands.command(name="debug-flair")
     async def debug_flair(self, ctx, reaction):
@@ -330,7 +336,8 @@ class Bot(commands.Bot):
     def __init__(self, cmd_store, flair_store, admin_channel_name, log_channel_name):
         super().__init__(command_prefix=COMMAND_PREFIX)
         self.add_cog(CommandSetter(self.user, cmd_store, admin_channel_name))
-        self.add_cog(Flairs(flair_store, self, log_channel_name))
+        self.add_cog(Flairs(flair_store, self,
+                            admin_channel_name, log_channel_name))
 
     async def on_ready(self):
         print(f"Logged in as {self.user}")
