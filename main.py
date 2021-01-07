@@ -167,6 +167,7 @@ Save a random command: {RANDOM_COMMAND} <keyword> <response content> ({ADD_ALL_C
 Use a command: {SUMMONING_KEY}<keyword>
 Delete a command: {DELETE_COMMAND} <keyword>
 List all commands: {LIST_COMMAND}
+Save a flair setting: {COMMAND_PREFIX}set-flair <message ID> <emoji> <@role>
 """)
 
 
