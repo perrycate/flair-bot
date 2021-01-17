@@ -1,2 +1,2 @@
 #!/bin/bash
-pipenv run python3 test.py
+pipenv run python3 cmd_setter_test.py

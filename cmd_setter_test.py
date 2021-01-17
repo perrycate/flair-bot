@@ -6,7 +6,7 @@ import asyncio
 import os
 from unittest.mock import Mock, MagicMock
 
-import main
+import cmd_setter
 from storage import CmdStore
 
 # Make sure this doesn't coincide with a sqlite db file that's really used.
@@ -15,13 +15,13 @@ TEST_DB = 'test_db_please_ignore.db'
 ADMIN = 'admin-channel'
 
 # Just to save a couple characters.
-SUMMON_KEY = main.SUMMONING_KEY
-SAVE = main.SAVE_COMMAND
-RANDOM = main.RANDOM_COMMAND
-ADD_ALL = main.ADD_ALL_COMMAND
-LIST = main.LIST_COMMAND
-DELETE = main.DELETE_COMMAND
-HELP = main.HELP_COMMAND
+SUMMON_KEY = cmd_setter.SUMMONING_KEY
+SAVE = cmd_setter.SAVE_COMMAND
+RANDOM = cmd_setter.RANDOM_COMMAND
+ADD_ALL = cmd_setter.ADD_ALL_COMMAND
+LIST = cmd_setter.LIST_COMMAND
+DELETE = cmd_setter.DELETE_COMMAND
+HELP = cmd_setter.HELP_COMMAND
 
 # TODO Testing flairs
 # make self.get_guild(_) return an object that returns an object with id when get_role(id) is called
@@ -41,7 +41,7 @@ class CommandSetterTest(unittest.TestCase):
 
         # Create a bot to test
         self.test_account = MagicMock(spec=discord.ClientUser)
-        self.bot = MagicMock(wraps=main.CommandSetter(
+        self.bot = MagicMock(wraps=cmd_setter.CommandSetter(
             self.test_account, db, ADMIN))
 
     def tearDown(self):
@@ -271,7 +271,7 @@ class TestRandomCommands(CommandSetterTest):
         self.send_check(message(f"{DELETE} test", ADMIN), [])
 
         # We should not respond, since we deleted it.
-        self.send_check(message("{}test", main.SUMMONING_KEY), None)
+        self.send_check(message("{}test", cmd_setter.SUMMONING_KEY), None)
 
 
 class TestIgnoresSelfMessages(CommandSetterTest):
@@ -279,7 +279,7 @@ class TestIgnoresSelfMessages(CommandSetterTest):
         # Make a message the bot would normally respond to, but from itself.
         # This test might not work properly if the help command isn't working,
         # but that's ok because the admin test should fail in that case. :P
-        m = message(main.HELP_COMMAND, ADMIN)
+        m = message(cmd_setter.HELP_COMMAND, ADMIN)
         m.author = self.test_account
 
         # Make sure we don't get a response.
@@ -288,11 +288,11 @@ class TestIgnoresSelfMessages(CommandSetterTest):
 
 class TestHelp(CommandSetterTest):
     def test_help_works_in_admin_channel(self):
-        r = self.send(message(main.HELP_COMMAND, ADMIN))
+        r = self.send(message(cmd_setter.HELP_COMMAND, ADMIN))
         self.assertContainsAll(r, ['Save', 'Use', 'Delete'])
 
     def test_help_doesnt_work_outside_admin_channel(self):
-        self.assertIsNone(self.send(message(main.HELP_COMMAND)))
+        self.assertIsNone(self.send(message(cmd_setter.HELP_COMMAND)))
 
 
 # We can set this as a return value to make mock functions behave as if they
