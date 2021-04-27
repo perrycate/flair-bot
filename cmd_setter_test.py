@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-import unittest
-import discord
-import time
 import asyncio
 import os
-from unittest.mock import Mock, MagicMock
+import time
+import unittest
+from typing import Optional, Tuple
+from unittest.mock import MagicMock, Mock
+
+import discord
 
 import cmd_setter
 from storage import CmdStore
@@ -57,14 +59,17 @@ class CommandSetterTest(unittest.TestCase):
     #
     # In case #2, an empty list will succeed iff the response is not None.
     def send_check(self, message, expected_resp):
-        resp = self.send(message)
+        resp, _ = self.send(message)
 
         if expected_resp is None:
             self.assertIsNone(expected_resp)
         elif isinstance(expected_resp, str):
             self.assertEqual(resp, expected_resp)
         elif isinstance(expected_resp, list):
-            self.assertIsNotNone(resp)
+            self.assertIsNotNone(
+                resp,
+                msg=
+                f"Got no response to message with content '{message.content}'")
             self.assertContainsAll(resp, expected_resp)
         else:
             raise TypeError(f"Illegal expected response of type" /
@@ -72,7 +77,7 @@ class CommandSetterTest(unittest.TestCase):
 
     # Triggers the bot with the given "discord.Message" (must be a Mock).
     # Returns the text of the bot's response, or None if there was no response.
-    def send(self, message):
+    def send(self, message) -> Tuple[Optional[str], Optional[discord.File]]:
         # The real message.channel.send is an async function. Make it return a
         # future to mimic the real behavior.
         message.channel.send.return_value = empty_future()
@@ -82,9 +87,16 @@ class CommandSetterTest(unittest.TestCase):
         l.run_until_complete(self.bot.on_message(message))
 
         # Return the response, if there was one.
+        # There should be no more than 1 response.
+        self.assertLessEqual(message.channel.send.call_count, 1)
+        content = None
+        image = None
         if message.channel.send.call_args is not None:
             # The message content is the first argument.
-            return message.channel.send.call_args[0][0]
+            content = message.channel.send.call_args.args[0]
+            image = message.channel.send.call_args.kwargs.get("file", None)
+
+        return content, image
 
     # Makes sure that all of the string fragments are in the given string text.
     # Is case-insensitive.
@@ -143,6 +155,40 @@ class TestCreateAndDeleteCommands(CommandSetterTest):
         # Make sure the bot still responds
         self.send_check(message(f"{SUMMON_KEY}test"), "I say something")
 
+    def test_rejects_invalid_input(self):
+        # No content or attachment.
+        self.send_check(message(f"{SAVE} test", ADMIN),
+                        ["format", "keyword", "content"])
+
+        # No keyword.
+        self.send_check(message(f"{SAVE}", ADMIN),
+                        ["format", "keyword", "content"])
+
+    def test_accepts_attachment_and_no_content(self):
+        # No content, but has attachment.
+        msg = message(f"{SAVE} test", ADMIN)
+        image = b'533190190'  # Pretend this sequence of bytes is an image lol.
+        _attach_image(msg, image)
+
+        self.send_check(msg, [f"{SUMMON_KEY}test", "image"])
+
+        # Should get the image back when the new command is triggered.
+        _, returned_image = self.send(message(f"{SUMMON_KEY}test"))
+        self.assertEqual(image, returned_image.fp.read())
+
+    def test_accepts_attachment_and_text(self):
+        # No content, but has attachment.
+        msg = message(f"{SAVE} test TEXT", ADMIN)
+        image = b'533190190'  # Pretend this sequence of bytes is an image lol.
+        _attach_image(msg, image)
+
+        self.send_check(msg, [f"{SUMMON_KEY}test", "TEXT", "image"])
+
+        # Should get the image back when the new command is triggered.
+        text, returned_image = self.send(message(f"{SUMMON_KEY}test"))
+        self.assertEqual(text, "TEXT")
+        self.assertEqual(image, returned_image.fp.read())
+
     def test_ignores_unset_commands(self):
         # Use of the same "test" command name we use in the other tests is
         # intentional. Consider it a bonus sanity check to make sure we're
@@ -169,7 +215,7 @@ class TestListCommands(CommandSetterTest):
         self.send_check(message(f"{LIST}", ADMIN), ["test1"])
 
         # Should not list the second command, since it was deleted.
-        r = self.send(message(f"{LIST}", ADMIN))
+        r, _ = self.send(message(f"{LIST}", ADMIN))
         self.assertTrue("test2" not in r)
 
     def test_does_not_list_random_commands_multiple_times(self):
@@ -178,7 +224,7 @@ class TestListCommands(CommandSetterTest):
             message(f"{RANDOM} test1 this is another test", ADMIN), [])
 
         # Should only include "test1" once.
-        r = self.send(message(f"{LIST}", ADMIN))
+        r, _ = self.send(message(f"{LIST}", ADMIN))
         self.assertEqual(r.count("test1"), 1)
 
     # TODO think up a decent way to test splitting up the response if too many
@@ -206,7 +252,7 @@ class TestRandomCommands(CommandSetterTest):
         # Count the occurrences of each response.
         totals = {"1": 0, "2": 0, "3": 0}
         for i in range(100):
-            r = self.send(message(f"{SUMMON_KEY}test"))
+            r, _ = self.send(message(f"{SUMMON_KEY}test"))
             n = r.split()[1]
             totals[n] += 1
 
@@ -225,7 +271,7 @@ class TestRandomCommands(CommandSetterTest):
         # Count the occurrences of each response.
         totals = {"1": 0, "2": 0, "3": 0, "4": 0}
         for i in range(100):
-            r = self.send(message(f"{SUMMON_KEY}test"))
+            r, _ = self.send(message(f"{SUMMON_KEY}test"))
             totals[r] += 1
 
         # Check each command got called at least a decent bit.
@@ -257,7 +303,7 @@ class TestRandomCommands(CommandSetterTest):
 
         totals = {"1": 0, "2": 0}
         for i in range(100):
-            r = self.send(message(f"{SUMMON_KEY}test"))
+            r, _ = self.send(message(f"{SUMMON_KEY}test"))
             n = r.split()[1]
             totals[n] += 1
 
@@ -288,18 +334,24 @@ class TestIgnoresSelfMessages(CommandSetterTest):
 
 class TestHelp(CommandSetterTest):
     def test_help_works_in_admin_channel(self):
-        r = self.send(message(cmd_setter.HELP_COMMAND, ADMIN))
+        r, _ = self.send(message(cmd_setter.HELP_COMMAND, ADMIN))
         self.assertContainsAll(r, ['Save', 'Use', 'Delete'])
 
     def test_help_doesnt_work_outside_admin_channel(self):
-        self.assertIsNone(self.send(message(cmd_setter.HELP_COMMAND)))
+        content, image = self.send(message(cmd_setter.HELP_COMMAND))
+        self.assertIsNone(content)
+        self.assertIsNone(image)
 
 
 # We can set this as a return value to make mock functions behave as if they
 # are async functions
 def empty_future():
+    return future(None)
+
+
+def future(value):
     f = asyncio.Future()
-    f.set_result(None)
+    f.set_result(value)
     return f
 
 
@@ -313,6 +365,17 @@ def message(text, channel='arbitrary-channel'):
     m.channel.name = channel
     m.author.name = "arbitrary_user"
     return m
+
+
+# Wraps image in a "discord.Attachment", and adds it to the "discord.Message" (actually mocks).
+def _attach_image(msg: discord.Message, image: bytes):
+    file_obj = MagicMock(spec=discord.File)
+    file_obj.fp.read = MagicMock(return_value=image)
+
+    attachment = MagicMock(spec=discord.Attachment)
+    attachment.to_file = MagicMock(return_value=future(file_obj))
+
+    msg.attachments = [attachment]
 
 
 if __name__ == '__main__':

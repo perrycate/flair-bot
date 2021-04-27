@@ -1,7 +1,9 @@
+import io
+from datetime import datetime, timedelta
+from typing import Optional, Tuple
 
+import discord
 from discord.ext import commands
-from datetime import datetime
-from datetime import timedelta
 
 PREFIX = _p = '!'
 SUMMONING_KEY = '~'
@@ -28,6 +30,35 @@ class CommandSetter(commands.Cog):
         self._db = storage
         self._admin_channel = admin_channel
 
+    @staticmethod
+    async def _extract_content(message: discord.Message) -> Tuple[str, str, Optional[discord.File], bool]:
+        """
+        Attempts to extract trigger word, content and, image attachment from message
+        (in that order). Also returns true iff successful.
+        """
+        # Only one attachment at a time is supported.
+        if len(message.attachments) > 1:
+            return "", "", None, False
+
+        # Get attachment (we assume its an image), if applicable.
+        image = None
+        if len(message.attachments) == 1:
+            image = await message.attachments[0].to_file()
+
+        # Must have content or image.
+        strs = message.content.split(maxsplit=2)
+        if len(strs) < 3 and image is None:
+            return "", "", None, False
+
+        # Must have command.
+        if len(strs) < 2:
+            return "", "", None, False
+
+        # It is possible to have an image attachment but no content.
+        content = strs[2] if len(strs) > 2 else ""
+        command = strs[1].lower()
+        return command, content, image, True
+
     # TODO Now that I better understand discord.py, I desperately need to break these out into smaller commands.
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -35,12 +66,13 @@ class CommandSetter(commands.Cog):
         if message.author == self._user:
             return
 
+
         if message.content.startswith(SUMMONING_KEY):
             # Command is the first word, not including the summoning key
             command = message.content.split()[0][len(SUMMONING_KEY):].lower()
-            content = self._db.get(command)
-            if content != '':
-                await message.channel.send(content)
+            content, image = self._db.get(command)
+            if content != '' or image is not None:
+                await message.channel.send(content, file=image)
             return
 
         # Admin-only commands below this point.
@@ -59,14 +91,14 @@ class CommandSetter(commands.Cog):
             return
 
         if message.content.startswith(SAVE_COMMAND):
-            strs = message.content.split(maxsplit=2)
-            if len(strs) < 3:
-                await message.channel.send(f"Sorry, I need the format '{SAVE_COMMAND} <keyword> <response content>'.")
+            command, content, image, ok = await CommandSetter._extract_content(message)
+
+            if not ok:
+                await message.channel.send(f"Sorry, I need the format '{SAVE_COMMAND} <keyword> <response content>' and support no more than 1 image.")
                 return
 
             # If something is a random command (has multiple responses), don't
             # automatically overwrite it.
-            command = strs[1].lower()
             if self._db.count(command) > 1:
                 await message.channel.send(
                     "Sorry, {0}{1} is already a command with multiple responses. "
@@ -74,13 +106,16 @@ class CommandSetter(commands.Cog):
                         SUMMONING_KEY, command, DELETE_COMMAND))
                 return
 
-            command = strs[1].lower()
-            content = strs[2]
             self._db.delete(command)
-            self._db.save(message.author.name, command, content)
-            await message.channel.send(f"Got it! Will respond to '{SUMMONING_KEY}{command}' with '{content}'")
+            self._db.save(message.author.name, command, content, image)
+
+            response_msg = f"Got it! Will respond to '{SUMMONING_KEY}{command}' with '{content}'"
+            if image is not None:
+                response_msg += " and that image!"
+
+            await message.channel.send(response_msg)
             print(
-                f"{datetime.now()}: {message.author.name} set '{command}' to '{content}'")
+                f"{datetime.now()}: {message.author.name} set '{command}' to '{content}'. (Had image: {image is not None})")
             return
 
         if message.content.startswith(ADD_ALL_COMMAND):
@@ -100,13 +135,12 @@ class CommandSetter(commands.Cog):
             return
 
         if message.content.startswith(RANDOM_COMMAND):
-            strs = message.content.split(maxsplit=2)
-            if len(strs) < 3:
-                await message.channel.send(f"Sorry, I need the format '{RANDOM_COMMAND} <keyword> <response content>'.")
+            command, content, image, ok = await CommandSetter._extract_content(message)
+            if not ok:
+                await message.channel.send(f"Sorry, I need the format '{RANDOM_COMMAND} <keyword> <response content>', and support no more than 1 image.")
                 return
-            command = strs[1].lower()
-            content = strs[2]
-            self._db.save(message.author.name, command, content)
+
+            self._db.save(message.author.name, command, content, image)
             c = self._db.count(command)
             await message.channel.send(f"Got it! Will sometimes respond to '{SUMMONING_KEY}{command}' with '{content}'. (one of {c} possible responses).")
             print(

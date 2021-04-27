@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import os
 import sys
-from discord.ext import commands
-from storage import CmdStore, FlairStore
 
+from discord.ext import commands
+
+from storage import CmdStore, FlairStore
 import flairs
 import cmd_setter
 
@@ -25,6 +26,7 @@ DEFAULT_LOG_CHANNEL = 'newtons-reactions-log'
 class Bot(commands.Bot):
     def __init__(self, cmd_store, flair_store, admin_channel_name, log_channel_name):
         super().__init__(command_prefix=cmd_setter.PREFIX)
+        # TODO because the bot isn't connected yet, self.user is still none. Fix.
         self.add_cog(cmd_setter.CommandSetter(
             self.user, cmd_store, admin_channel_name))
         self.add_cog(flairs.Flairs(flair_store, self,

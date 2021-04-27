@@ -1,23 +1,45 @@
 #!/usr/bin/env python3
+import io
 import sqlite3
+from typing import Optional, Tuple
+
+import discord
+
+
+def _discord_file_to_bytes(f: discord.File) -> bytes:
+    return f.fp.read()
+
+
+def _bytes_to_discord_file(b: bytes) -> discord.File:
+    file_like_obj = io.BytesIO(b)
+    # If the filename does not end with a image format, discord will not preview the image.
+    # It doesn't actually matter if the image is a .png or not, discord will still preview it lol.
+    return discord.File(file_like_obj, filename="image.png")
 
 
 class CmdStore:
     def __init__(self, sqlite3_db_name):
         self._conn = sqlite3.connect(sqlite3_db_name)
         self._cursor = self._conn.cursor()
-        self._exec('''CREATE TABLE IF NOT EXISTS commands (key INTEGER PRIMARY KEY, date REAL, user TEXT, trigger TEXT, content TEXT, enabled INTEGER);''')
+        self._exec('''CREATE TABLE IF NOT EXISTS commands (key INTEGER PRIMARY KEY, date REAL, user TEXT, trigger TEXT, content TEXT, enabled INTEGER, image BLOB);''')
 
-    def save(self, username, command, content):
-        self._exec('''INSERT INTO commands (date, user, trigger, content, enabled) VALUES(strftime('%s.%f', 'now'), ?, ?, ?, 1)''',
-                   username, command, content)
+    def save(self, username, command, content, image=None):
+        if image is not None:
+            image = _discord_file_to_bytes(image)
+        self._exec('''INSERT INTO commands (date, user, trigger, content, enabled, image) VALUES(strftime('%s.%f', 'now'), ?, ?, ?, 1, ?)''',
+                   username, command, content, image)
 
-    def get(self, command):
+    def get(self, command) -> Tuple[str, Optional[discord.File]]:
         rows = self._read(
-            '''SELECT content FROM commands where trigger=? AND enabled=1 ORDER BY RANDOM() LIMIT 1;''', command)
+            '''SELECT content, image FROM commands where trigger=? AND enabled=1 ORDER BY RANDOM() LIMIT 1;''', command)
         if len(rows) == 0:
-            return ""
-        return rows[0][0]
+            return "", None
+
+        # Convert image into discord's format, if it is present.
+        image = rows[0][1]
+        if image is not None:
+            image = _bytes_to_discord_file(image)
+        return rows[0][0], image
 
     def list_commands(self):
         return self._read(
