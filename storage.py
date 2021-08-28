@@ -1,20 +1,27 @@
 #!/usr/bin/env python3
 import io
+import pickle
 import sqlite3
+
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import discord
 
+@dataclass
+class File:
+    name: str
+    data: bytes
 
 def _discord_file_to_bytes(f: discord.File) -> bytes:
-    return f.fp.read()
+    return pickle.dumps(File(f.filename, f.fp.read()))
 
 
 def _bytes_to_discord_file(b: bytes) -> discord.File:
-    file_like_obj = io.BytesIO(b)
+    f = pickle.loads(b)
     # If the filename does not end with a image format, discord will not preview the image.
     # It doesn't actually matter if the image is a .png or not, discord will still preview it lol.
-    return discord.File(file_like_obj, filename="image.png")
+    return discord.File(io.BytesIO(f.data), filename=f.name)
 
 
 class CmdStore:

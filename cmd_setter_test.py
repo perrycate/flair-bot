@@ -167,20 +167,23 @@ class TestCreateAndDeleteCommands(CommandSetterTest):
     def test_accepts_attachment_and_no_content(self):
         # No content, but has attachment.
         msg = message(f"{SAVE} test", ADMIN)
-        image = b'533190190'  # Pretend this sequence of bytes is an image lol.
-        _attach_image(msg, image)
+        image = b"533190190"  # Pretend this sequence of bytes is an image lol.
+        image_name = "image.png"
+        _attach_image(msg, image, image_name)
 
         self.send_check(msg, [f"{SUMMON_KEY}test", "image"])
 
         # Should get the image back when the new command is triggered.
         _, returned_image = self.send(message(f"{SUMMON_KEY}test"))
         self.assertEqual(image, returned_image.fp.read())
+        self.assertEqual(image_name, returned_image.filename)
 
     def test_accepts_attachment_and_text(self):
         # No content, but has attachment.
         msg = message(f"{SAVE} test TEXT", ADMIN)
-        image = b'533190190'  # Pretend this sequence of bytes is an image lol.
-        _attach_image(msg, image)
+        image = b"533190190"  # Pretend this sequence of bytes is an image lol.
+        image_name = "video.mp4"
+        _attach_image(msg, image, image_name)
 
         self.send_check(msg, [f"{SUMMON_KEY}test", "TEXT", "image"])
 
@@ -188,6 +191,7 @@ class TestCreateAndDeleteCommands(CommandSetterTest):
         text, returned_image = self.send(message(f"{SUMMON_KEY}test"))
         self.assertEqual(text, "TEXT")
         self.assertEqual(image, returned_image.fp.read())
+        self.assertEqual(image_name, returned_image.filename)
 
     def test_ignores_unset_commands(self):
         # Use of the same "test" command name we use in the other tests is
@@ -368,8 +372,9 @@ def message(text, channel='arbitrary-channel'):
 
 
 # Wraps image in a "discord.Attachment", and adds it to the "discord.Message" (actually mocks).
-def _attach_image(msg: discord.Message, image: bytes):
+def _attach_image(msg: discord.Message, image: bytes, filename: str='file.png'):
     file_obj = MagicMock(spec=discord.File)
+    file_obj.filename = filename
     file_obj.fp.read = MagicMock(return_value=image)
 
     attachment = MagicMock(spec=discord.Attachment)
