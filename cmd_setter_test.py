@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import io
 import os
 import time
 import unittest
@@ -373,9 +374,7 @@ def message(text, channel='arbitrary-channel'):
 
 # Wraps image in a "discord.Attachment", and adds it to the "discord.Message" (actually mocks).
 def _attach_image(msg: discord.Message, image: bytes, filename: str='file.png'):
-    file_obj = MagicMock(spec=discord.File)
-    file_obj.filename = filename
-    file_obj.fp.read = MagicMock(return_value=image)
+    file_obj = discord.File(io.BytesIO(image), filename)
 
     attachment = MagicMock(spec=discord.Attachment)
     attachment.to_file = MagicMock(return_value=future(file_obj))
